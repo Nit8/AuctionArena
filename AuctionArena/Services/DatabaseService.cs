@@ -114,6 +114,49 @@ namespace AuctionArena.Services
             return await connection.QueryFirstOrDefaultAsync<Lobby>(
                 "SELECT * FROM Lobbies WHERE LobbyId = @LobbyId", new { LobbyId = lobbyId });
         }
+        // Create Teams table
+        public void CreateTeamsTable()
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            connection.Execute(@"
+                CREATE TABLE IF NOT EXISTS Teams (
+                    TeamId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    LobbyId TEXT NOT NULL,
+                    TeamName TEXT NOT NULL,
+                    OwnerName TEXT NOT NULL,
+                    RemainingPoints INTEGER NOT NULL,
+                    PlayerCount INTEGER NOT NULL,
+                    FOREIGN KEY (LobbyId) REFERENCES Lobbies(LobbyId)
+                )
+            ");
+        }
+
+        // Create a team
+        public async Task<int> CreateTeam(Team team)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+
+            return await connection.ExecuteScalarAsync<int>(@"
+                INSERT INTO Teams (LobbyId, TeamName, OwnerName, RemainingPoints, PlayerCount)
+                VALUES (@LobbyId, @TeamName, @OwnerName, @RemainingPoints, @PlayerCount);
+                SELECT last_insert_rowid();
+            ", team);
+        }
+
+        // Get teams for a lobby
+        public async Task<List<Team>> GetTeamsByLobby(string lobbyId)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+
+            var teams = await connection.QueryAsync<Team>(
+                "SELECT * FROM Teams WHERE LobbyId = @LobbyId",
+                new { LobbyId = lobbyId }
+            );
+
+            return teams.ToList();
+        }
 
     }
 }

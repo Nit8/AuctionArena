@@ -1,0 +1,64 @@
+﻿@{
+    ViewData["Title"] = "Test Realtime";
+}
+
+<div class="container mt-5">
+    <h1>SignalR Test</h1>
+
+    <div class="mb-3">
+        <input type="text" id="lobbyInput" placeholder="Enter lobby ID"
+               class="form-control" value="TEST123">
+        <button onclick="joinLobby()" class="btn btn-primary mt-2">
+            Join Lobby
+        </button>
+    </div>
+
+    <div class="mb-3">
+        <input type="number" id="bidInput" placeholder="Bid amount"
+               class="form-control">
+        <button onclick="sendBid()" class="btn btn-success mt-2">
+            Send Bid
+        </button>
+    </div>
+
+    <div id="messages" class="alert alert-info"></div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
+    <script>
+        // Create connection
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/auctionHub")
+            .build();
+
+        // Start connection
+        connection.start()
+            .then(() => console.log("Connected to SignalR"))
+            .catch(err => console.error(err));
+
+        // Listen for bid updates
+        connection.on("ReceiveBidUpdate", (data) => {
+            document.getElementById('messages').innerHTML =
+                `New bid received: ${data.bidAmount}`;
+        });
+
+        // Join lobby
+        function joinLobby() {
+            const lobbyId = document.getElementById('lobbyInput').value;
+            connection.invoke("JoinLobby", lobbyId);
+            alert('Joined lobby: ' + lobbyId);
+        }
+
+        // Send bid
+        function sendBid() {
+            const lobbyId = document.getElementById('lobbyInput').value;
+            const bidAmount = document.getElementById('bidInput').value;
+
+            connection.invoke("SendBidUpdate", lobbyId, {
+                bidAmount: bidAmount,
+                teamName: "Test Team"
+            });
+        }
+    </script>
+}
