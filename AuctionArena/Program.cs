@@ -1,9 +1,20 @@
+using AuctionArena.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddSingleton<DatabaseService>();
 
 var app = builder.Build();
+
+
+// Initialize the database on application startup, makes DatabaseService available everywhere
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DatabaseService>();
+    db.InitializeDatabase();
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
