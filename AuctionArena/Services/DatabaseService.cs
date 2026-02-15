@@ -1,4 +1,5 @@
-﻿using Dapper;
+﻿using AuctionArena.Models;
+using Dapper;
 using Microsoft.Data.Sqlite;
 namespace AuctionArena.Services
 {
@@ -94,5 +95,25 @@ namespace AuctionArena.Services
                 )
             ");
         }
+        public async Task<string> CreateLobby(Lobby lobby)
+        {
+            using var connection = GetConnection();
+            await connection.ExecuteAsync(@"
+                INSERT INTO Lobbies (LobbyId, HostName, GameName, Password, TotalTeams, 
+                    PlayersPerTeam, PointsPerTeam, MinPlayersPerTeam, MaxPlayersPerTeam, 
+                    CreatedAt, IsActive, IsPaused)
+                VALUES (@LobbyId, @HostName, @GameName, @Password, @TotalTeams, 
+                    @PlayersPerTeam, @PointsPerTeam, @MinPlayersPerTeam, @MaxPlayersPerTeam, 
+                    @CreatedAt, @IsActive, @IsPaused)
+            ",lobby);
+            return lobby.LobbyId;
+        }
+        public async Task<Lobby?> GetLobby(string lobbyId)
+        {
+            using var connection = GetConnection();
+            return await connection.QueryFirstOrDefaultAsync<Lobby>(
+                "SELECT * FROM Lobbies WHERE LobbyId = @LobbyId", new { LobbyId = lobbyId });
+        }
+
     }
 }
