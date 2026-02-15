@@ -2,7 +2,7 @@
 
 namespace AuctionArena.Hubs
 {
-    public class ActionHub : Hub
+    public class AuctionHub : Hub
     {
         public async Task JoinLobby(string lobbyId)
         {
