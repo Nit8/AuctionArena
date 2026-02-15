@@ -241,6 +241,7 @@ namespace AuctionArena.Controllers
         [HttpPost]
         public async Task<IActionResult> ImportPlayers(string lobbyId, string playersData)
         {
+            if (playersData is null) return RedirectToAction("ManagePlayers", new { lobbyId });
             var lines = playersData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             var players = await _db.GetPlayersByLobby(lobbyId);
             var maxOrder = players.Any() ? players.Max(p => p.DisplayOrder) : 0;
