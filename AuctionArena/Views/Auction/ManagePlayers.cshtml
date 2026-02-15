@@ -1,0 +1,103 @@
+@model List<AuctionArena.Models.Player>
+@{
+    ViewData["Title"] = "Manage Players";
+    var lobbyId = ViewBag.LobbyId;
+    var gameName = ViewBag.GameName;
+}
+
+<div class="container">
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">⚽ Manage Players - @gameName</h3>
+            <a href="/Auction/HostDashboard/@lobbyId" class="btn btn-light btn-sm">Go to Auction</a>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>➕ Add Single Player</h5>
+                    <form method="post" action="/Auction/AddPlayer">
+                        <input type="hidden" name="lobbyId" value="@lobbyId">
+                        <div class="row mb-2">
+                            <div class="col-7">
+                                <input type="text" class="form-control" name="playerName" 
+                                       placeholder="Player Name" required>
+                            </div>
+                            <div class="col-3">
+                                <input type="text" class="form-control" name="position" 
+                                       placeholder="Position" required>
+                            </div>
+                            <div class="col-2">
+                                <button type="submit" class="btn btn-success w-100">Add</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="col-md-6">
+                    <h5>📋 Import Multiple Players</h5>
+                    <form method="post" action="/Auction/ImportPlayers">
+                        <input type="hidden" name="lobbyId" value="@lobbyId">
+                        <div class="mb-2">
+                            <textarea class="form-control" name="playersData" rows="3" 
+                                      placeholder="Format: Name,Position&#10;Example:&#10;Cristiano Ronaldo,Forward&#10;Lionel Messi,Forward&#10;Kevin De Bruyne,Midfielder"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Import Players</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">📃 Player List (@Model.Count players)</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.Count == 0)
+            {
+                <div class="alert alert-info">
+                    No players added yet. Add players using the forms above.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Player Name</th>
+                                <th>Position</th>
+                                <th>Status</th>
+                                <th>Sold To</th>
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var player in Model)
+                            {
+                                <tr>
+                                    <td>@player.DisplayOrder</td>
+                                    <td><strong>@player.PlayerName</strong></td>
+                                    <td>@player.Position</td>
+                                    <td>
+                                        @if (player.IsAuctioned)
+                                        {
+                                            <span class="badge bg-success">Sold</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Pending</span>
+                                        }
+                                    </td>
+                                    <td>@(player.SoldToTeamId.HasValue ? "Team " + player.SoldToTeamId : "-")</td>
+                                    <td>@(player.SoldPrice?.ToString() ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

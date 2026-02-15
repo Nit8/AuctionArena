@@ -1,32 +1,61 @@
-﻿@{
+@{
     ViewData["Title"] = "Home";
 }
 
-<div class="container text-center mt-5">
-    <h1 class="display-3">🏆 Live Auction App</h1>
-    <p class="lead">Create or join player auctions!</p>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="text-center text-white mb-5">
+                <h1 class="display-3 fw-bold mb-3">🏆 Live Auction</h1>
+                <p class="lead">Create or join a player auction lobby for your favorite sport!</p>
+            </div>
 
-    <div class="row mt-5">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h3>🎯 Host Auction</h3>
-                    <p>Create a new lobby and invite teams</p>
-                    <a href="/Auction/CreateLobby" class="btn btn-primary">
-                        Create Lobby
-                    </a>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body text-center p-5">
+                            <div class="mb-4">
+                                <span style="font-size: 4rem;">🎯</span>
+                            </div>
+                            <h3 class="card-title mb-3">Host Auction</h3>
+                            <p class="card-text text-muted mb-4">
+                                Create a new lobby and invite team owners to participate in your auction
+                            </p>
+                            <a href="/Auction/CreateLobby" class="btn btn-primary btn-lg w-100">
+                                Create Lobby
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body text-center p-5">
+                            <div class="mb-4">
+                                <span style="font-size: 4rem;">👥</span>
+                            </div>
+                            <h3 class="card-title mb-3">Join Auction</h3>
+                            <p class="card-text text-muted mb-4">
+                                Enter a lobby code and join as a team owner to bid on players
+                            </p>
+                            <a href="/Auction/JoinLobby" class="btn btn-primary btn-lg w-100">
+                                Join Lobby
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h3>👥 Join Auction</h3>
-                    <p>Enter a lobby code to join</p>
-                    <a href="/Auction/JoinLobby" class="btn btn-primary">
-                        Join Lobby
-                    </a>
+            <div class="card mt-5 bg-white bg-opacity-90">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-3">ℹ️ How It Works</h5>
+                    <ol class="mb-0">
+                        <li class="mb-2"><strong>Host creates a lobby</strong> - Set up teams, points, and add players</li>
+                        <li class="mb-2"><strong>Team owners join</strong> - Use lobby code and password to join</li>
+                        <li class="mb-2"><strong>Auction begins</strong> - Host starts player auctions one by one</li>
+                        <li class="mb-2"><strong>Real-time bidding</strong> - Owners bid with their points budget</li>
+                        <li><strong>Build your team</strong> - Win players and create the ultimate team!</li>
+                    </ol>
                 </div>
             </div>
         </div>

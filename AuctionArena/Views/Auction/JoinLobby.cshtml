@@ -1,0 +1,64 @@
+@model AuctionArena.Models.JoinLobbyViewModel
+@{
+    ViewData["Title"] = "Join Lobby";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">👥 Join Auction Lobby</h3>
+                </div>
+                <div class="card-body p-4">
+                    @if (ViewData.ModelState.ErrorCount > 0)
+                    {
+                        <div class="alert alert-danger">
+                            @Html.ValidationSummary(false, "", new { @class = "mb-0" })
+                        </div>
+                    }
+
+                    <form method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Lobby Code</label>
+                            <input type="text" class="form-control form-control-lg text-center" 
+                                   name="LobbyId" placeholder="Enter 8-character code" 
+                                   style="letter-spacing: 3px; text-transform: uppercase;" 
+                                   maxlength="8" required>
+                            <small class="form-text text-muted">Ask the host for the lobby code</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Your Name (Owner Name)</label>
+                            <input type="text" class="form-control" name="OwnerName" 
+                                   placeholder="Enter your registered owner name" required>
+                            <small class="form-text text-muted">Use the exact name the host registered for you</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Password (if required)</label>
+                            <input type="password" class="form-control" name="Password" 
+                                   placeholder="Enter lobby password">
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">Join Lobby</button>
+                            <a href="/" class="btn btn-outline-secondary">Back</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4 bg-white bg-opacity-90">
+                <div class="card-body">
+                    <h6 class="card-title">💡 Tips</h6>
+                    <ul class="mb-0 small">
+                        <li>Make sure you're connected to the same network as the host</li>
+                        <li>Use the exact owner name that was set up by the host</li>
+                        <li>The lobby code is case-insensitive</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

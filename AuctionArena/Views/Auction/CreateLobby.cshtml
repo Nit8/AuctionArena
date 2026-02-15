@@ -1,44 +1,108 @@
-﻿@{
+@model AuctionArena.Models.CreateLobbyViewModel
+@{
     ViewData["Title"] = "Create Lobby";
 }
 
-<div class="container mt-5">
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <h3>🎯 Create Auction Lobby</h3>
-        </div>
-        <div class="card-body">
-            <form method="post">
-                <div class="mb-3">
-                    <label class="form-label">Your Name (Host)</label>
-                    <input type="text" class="form-control"
-                           name="hostName" required>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">🎯 Create Auction Lobby</h3>
                 </div>
+                <div class="card-body p-4">
+                    <form method="post" id="createLobbyForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Your Name (Host)</label>
+                                <input type="text" class="form-control" name="HostName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Game/Sport Name</label>
+                                <input type="text" class="form-control" name="GameName" placeholder="e.g., Football, Cricket" required>
+                            </div>
+                        </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Game/Sport Name</label>
-                    <input type="text" class="form-control"
-                           name="gameName" placeholder="e.g., Football" required>
+                        <div class="mb-3">
+                            <label class="form-label">Lobby Password (Optional)</label>
+                            <input type="password" class="form-control" name="Password" placeholder="Leave empty for no password">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Number of Teams</label>
+                                <input type="number" class="form-control" name="TotalTeams" id="totalTeams" value="4" min="2" max="12" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Points per Team</label>
+                                <input type="number" class="form-control" name="PointsPerTeam" value="1000" min="100" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Players per Team</label>
+                                <input type="number" class="form-control" name="PlayersPerTeam" value="11" min="1" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Min Players per Team</label>
+                                <input type="number" class="form-control" name="MinPlayersPerTeam" value="8" min="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Max Players per Team</label>
+                                <input type="number" class="form-control" name="MaxPlayersPerTeam" value="15" min="1" required>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h5 class="mb-3">Team Setup</h5>
+                        <div id="teamsContainer"></div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">Create Lobby & Continue</button>
+                            <a href="/" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
                 </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Number of Teams</label>
-                        <input type="number" class="form-control"
-                               name="totalTeams" value="4" min="2" required>
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Points per Team</label>
-                        <input type="number" class="form-control"
-                               name="pointsPerTeam" value="1000" min="100" required>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-lg">
-                    Create Lobby
-                </button>
-            </form>
+            </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    document.getElementById('totalTeams').addEventListener('change', function() {
+        generateTeamInputs(this.value);
+    });
+
+    function generateTeamInputs(count) {
+        const container = document.getElementById('teamsContainer');
+        container.innerHTML = '';
+        
+        for (let i = 0; i < count; i++) {
+            const teamDiv = document.createElement('div');
+            teamDiv.className = 'card mb-3';
+            teamDiv.innerHTML = `
+                <div class="card-body">
+                    <h6 class="card-title">Team ${i + 1}</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <input type="text" class="form-control" name="Teams[${i}].TeamName" placeholder="Team Name" required>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <input type="text" class="form-control" name="Teams[${i}].OwnerName" placeholder="Owner Name" required>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <input type="text" class="form-control" name="Teams[${i}].CaptainName" placeholder="Captain (Optional)">
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(teamDiv);
+        }
+    }
+
+    // Initialize with default teams
+    generateTeamInputs(4);
+</script>
+}

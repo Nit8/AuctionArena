@@ -1,0 +1,274 @@
+@model AuctionArena.Models.AuctionViewModel
+@{
+    ViewData["Title"] = "Host Dashboard";
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card bg-dark text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-0">🎯 @Model.Lobby.GameName Auction</h2>
+                            <p class="mb-0">Lobby Code: <strong style="letter-spacing: 3px;">@Model.Lobby.LobbyId</strong></p>
+                        </div>
+                        <div class="text-end">
+                            <a href="/Auction/ManagePlayers/@Model.Lobby.LobbyId" class="btn btn-light me-2">
+                                Manage Players
+                            </a>
+                            <button class="btn btn-warning" id="pauseBtn" onclick="togglePause()">
+                                @(Model.IsPaused ? "▶️ Resume" : "⏸️ Pause")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Current Auction Panel -->
+        <div class="col-lg-8">
+            <div class="card mb-3" id="currentAuctionCard">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Current Auction</h4>
+                </div>
+                <div class="card-body text-center p-5">
+                    @if (Model.CurrentPlayer != null)
+                    {
+                        <div id="playerDisplay">
+                            <h1 class="display-4 mb-3">@Model.CurrentPlayer.PlayerName</h1>
+                            <h3 class="text-muted mb-4">@Model.CurrentPlayer.Position</h3>
+                            
+                            <div class="alert alert-info" id="bidDisplay">
+                                @if (Model.CurrentHighestBid.HasValue)
+                                {
+                                    <h2 class="mb-0">Current Bid: <strong>@Model.CurrentHighestBid</strong></h2>
+                                    <p class="mb-0">by @Model.CurrentHighestBidder?.TeamName</p>
+                                }
+                                else
+                                {
+                                    <h3 class="mb-0">Waiting for bids...</h3>
+                                }
+                            </div>
+
+                            <div class="d-grid gap-2 mt-4">
+                                <button class="btn btn-success btn-lg" onclick="confirmSale()" 
+                                        @(Model.CurrentHighestBid.HasValue ? "" : "disabled")>
+                                    ✅ Confirm Sale
+                                </button>
+                                <button class="btn btn-secondary" onclick="skipPlayer()">
+                                    ⏭️ Skip Player
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div id="noPlayerDisplay">
+                            <h3 class="text-muted">No player in auction</h3>
+                            <p>Select a player from the list to start bidding</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Teams Overview -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Teams Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="teamsDisplay">
+                        @foreach (var team in Model.Teams)
+                        {
+                            <div class="col-md-6 mb-3">
+                                <div class="card team-card">
+                                    <div class="card-body">
+                                        <h6 class="card-title">@team.TeamName</h6>
+                                        <p class="mb-1"><small>Owner: @team.OwnerName</small></p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="badge bg-primary">@team.PlayerCount Players</span>
+                                                <span class="badge bg-success">@team.RemainingPoints Points</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    onclick="addPoints(@team.TeamId, '@team.TeamName')">
+                                                💰 Add Points
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Players List -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Available Players (@Model.RemainingPlayers.Count)</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    @foreach (var player in Model.RemainingPlayers)
+                    {
+                        <div class="card mb-2 player-card">
+                            <div class="card-body p-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>@player.PlayerName</strong>
+                                        <br><small class="text-muted">@player.Position</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary" 
+                                            onclick="startAuction(@player.PlayerId)">
+                                        Start
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Sold Players (@Model.SoldPlayers.Count)</h5>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    @foreach (var player in Model.SoldPlayers)
+                    {
+                        <div class="card mb-2">
+                            <div class="card-body p-2">
+                                <strong>@player.PlayerName</strong>
+                                <br><small>@player.Position - @player.SoldPrice pts</small>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const lobbyId = '@Model.Lobby.LobbyId';
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/auctionHub")
+        .build();
+
+    connection.start().then(() => {
+        connection.invoke("JoinLobby", lobbyId);
+        console.log("Connected to auction hub");
+    }).catch(err => console.error(err));
+
+    connection.on("ReceiveBidUpdate", (data) => {
+        const bidDisplay = document.getElementById('bidDisplay');
+        bidDisplay.innerHTML = `
+            <h2 class="mb-0">Current Bid: <strong>${data.bidAmount}</strong></h2>
+            <p class="mb-0">by ${data.teamName}</p>
+        `;
+        bidDisplay.classList.add('bid-animation');
+        setTimeout(() => bidDisplay.classList.remove('bid-animation'), 500);
+        
+        // Enable the Confirm Sale button
+        const confirmBtn = document.querySelector('button[onclick="confirmSale()"]');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+        }
+    });
+
+    connection.on("ReceivePlayerUpdate", (data) => {
+        if (data.playerId) {
+            document.getElementById('playerDisplay').innerHTML = `
+                <h1 class="display-4 mb-3">${data.playerName}</h1>
+                <h3 class="text-muted mb-4">${data.position}</h3>
+                <div class="alert alert-info" id="bidDisplay">
+                    <h3 class="mb-0">Waiting for bids...</h3>
+                </div>
+                <div class="d-grid gap-2 mt-4">
+                    <button class="btn btn-success btn-lg" onclick="confirmSale()" disabled>
+                        ✅ Confirm Sale
+                    </button>
+                    <button class="btn btn-secondary" onclick="skipPlayer()">
+                        ⏭️ Skip Player
+                    </button>
+                </div>
+            `;
+        } else {
+            document.getElementById('currentAuctionCard').querySelector('.card-body').innerHTML = `
+                <div class="text-center p-5">
+                    <h3 class="text-muted">No player in auction</h3>
+                    <p>Select a player from the list to start bidding</p>
+                </div>
+            `;
+        }
+    });
+
+    connection.on("ReceivePlayerSold", (data) => {
+        alert(`${data.playerName} sold to ${data.teamName} for ${data.soldPrice} points!`);
+        setTimeout(() => location.reload(), 1000);
+    });
+
+    connection.on("ReceivePauseUpdate", (isPaused) => {
+        document.getElementById('pauseBtn').textContent = isPaused ? '▶️ Resume' : '⏸️ Pause';
+        if (isPaused) {
+            alert('Auction paused by host');
+        }
+    });
+
+    connection.on("ReceiveTeamUpdate", (data) => {
+        setTimeout(() => location.reload(), 500);
+    });
+
+    function startAuction(playerId) {
+        fetch(`/Auction/StartPlayerAuction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `lobbyId=${lobbyId}&playerId=${playerId}`
+        }).then(() => location.reload());
+    }
+
+    function confirmSale() {
+        const playerId = @(Model.CurrentPlayer?.PlayerId ?? 0);
+        if (playerId === 0) return;
+        
+        fetch(`/Auction/ConfirmSale`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `lobbyId=${lobbyId}&playerId=${playerId}`
+        });
+    }
+
+    function skipPlayer() {
+        fetch(`/Auction/SkipPlayer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `lobbyId=${lobbyId}`
+        }).then(() => location.reload());
+    }
+
+    function togglePause() {
+        fetch(`/Auction/TogglePause`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `lobbyId=${lobbyId}`
+        });
+    }
+
+    function addPoints(teamId, teamName) {
+        const points = prompt(`Add points to ${teamName}:`, '100');
+        if (points && !isNaN(points) && parseInt(points) > 0) {
+            fetch(`/Auction/AddPoints`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `lobbyId=${lobbyId}&teamId=${teamId}&additionalPoints=${points}`
+            }).then(() => location.reload());
+        }
+    }
+</script>
+}

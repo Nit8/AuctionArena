@@ -1,0 +1,274 @@
+@model AuctionArena.Models.TeamDashboardViewModel
+@{
+    ViewData["Title"] = "Team Dashboard";
+}
+
+<div class="container">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-white">
+                    <h2 class="mb-0">🏆 @Model.Team.TeamName</h2>
+                    <p class="mb-0">Owner: @Model.Team.OwnerName</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">Available Points</h6>
+                    <h2 class="mb-0" id="pointsDisplay">@Model.RemainingPoints</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">Players</h6>
+                    <h2 class="mb-0">@Model.MyPlayers.Count</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">Status</h6>
+                    <h5 class="mb-0">
+                        <span class="badge @(Model.IsPaused ? "bg-warning" : "bg-success")" id="statusBadge">
+                            @(Model.IsPaused ? "⏸️ Paused" : "✅ Active")
+                        </span>
+                    </h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Player Auction -->
+    <div class="card mb-3" id="currentPlayerCard">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Current Player</h4>
+        </div>
+        <div class="card-body">
+            @if (Model.CurrentPlayer != null)
+            {
+                <div class="text-center" id="playerAuction">
+                    <h2 class="mb-2">@Model.CurrentPlayer.PlayerName</h2>
+                    <h5 class="text-muted mb-3">@Model.CurrentPlayer.Position</h5>
+                    
+                    <div class="alert alert-info mb-3" id="currentBidDisplay">
+                        @if (Model.CurrentHighestBid.HasValue)
+                        {
+                            <h3 class="mb-0">Current Bid: <strong>@Model.CurrentHighestBid</strong></h3>
+                            <p class="mb-0">by @Model.CurrentHighestBidderName</p>
+                        }
+                        else
+                        {
+                            <h4 class="mb-0">No bids yet - Place the first bid!</h4>
+                        }
+                    </div>
+
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
+                            <div class="input-group input-group-lg mb-3">
+                                <input type="number" class="form-control" id="bidAmount" 
+                                       placeholder="Enter bid amount" 
+                                       min="@(Model.CurrentHighestBid.HasValue ? Model.CurrentHighestBid.Value + 1 : 1)"
+                                       max="@Model.RemainingPoints">
+                                <button class="btn btn-success" onclick="placeBid()" 
+                                        id="bidButton" @(Model.CanBid && !Model.IsPaused ? "" : "disabled")>
+                                    Place Bid
+                                </button>
+                            </div>
+                            @if (!Model.CanBid)
+                            {
+                                <small class="text-danger">Insufficient points to bid</small>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-primary" onclick="quickBid(50)">+50</button>
+                        <button class="btn btn-outline-primary" onclick="quickBid(100)">+100</button>
+                        <button class="btn btn-outline-primary" onclick="quickBid(200)">+200</button>
+                        <button class="btn btn-outline-primary" onclick="quickBid(500)">+500</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="text-center text-muted p-4">
+                    <h4>Waiting for next player...</h4>
+                    <p>The host will start the auction shortly</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- My Team -->
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">My Team (@Model.MyPlayers.Count players)</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.MyPlayers.Any())
+            {
+                <div class="row">
+                    @foreach (var player in Model.MyPlayers)
+                    {
+                        <div class="col-md-6 mb-2">
+                            <div class="card player-card">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <strong>@player.PlayerName</strong>
+                                            <br><small class="text-muted">@player.Position</small>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-primary">@player.SoldPrice pts</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    You haven't won any players yet. Start bidding!
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const lobbyId = '@Model.Team.LobbyId';
+    const teamId = @Model.Team.TeamId;
+    let currentPlayerId = @(Model.CurrentPlayer?.PlayerId ?? 0);
+    
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/auctionHub")
+        .build();
+
+    connection.start().then(() => {
+        connection.invoke("JoinLobby", lobbyId);
+        console.log("Connected to auction hub");
+    }).catch(err => console.error(err));
+
+    connection.on("ReceiveBidUpdate", (data) => {
+        const display = document.getElementById('currentBidDisplay');
+        display.innerHTML = `
+            <h3 class="mb-0">Current Bid: <strong>${data.bidAmount}</strong></h3>
+            <p class="mb-0">by ${data.teamName}</p>
+        `;
+        display.classList.add('bid-animation');
+        setTimeout(() => display.classList.remove('bid-animation'), 500);
+        
+        // Update bid input minimum
+        document.getElementById('bidAmount').min = data.bidAmount + 1;
+    });
+
+    connection.on("ReceivePlayerUpdate", (data) => {
+        if (data.playerId) {
+            currentPlayerId = data.playerId;
+            const card = document.getElementById('currentPlayerCard');
+            card.querySelector('.card-body').innerHTML = `
+                <div class="text-center" id="playerAuction">
+                    <h2 class="mb-2">${data.playerName}</h2>
+                    <h5 class="text-muted mb-3">${data.position}</h5>
+                    <div class="alert alert-info mb-3" id="currentBidDisplay">
+                        <h4 class="mb-0">No bids yet - Place the first bid!</h4>
+                    </div>
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
+                            <div class="input-group input-group-lg mb-3">
+                                <input type="number" class="form-control" id="bidAmount" 
+                                       placeholder="Enter bid amount" min="1">
+                                <button class="btn btn-success" onclick="placeBid()" id="bidButton">
+                                    Place Bid
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-primary" onclick="quickBid(50)">+50</button>
+                        <button class="btn btn-outline-primary" onclick="quickBid(100)">+100</button>
+                        <button class="btn btn-outline-primary" onclick="quickBid(200)">+200</button>
+                        <button class="btn btn-outline-primary" onclick="quickBid(500)">+500</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            document.getElementById('currentPlayerCard').querySelector('.card-body').innerHTML = `
+                <div class="text-center text-muted p-4">
+                    <h4>Waiting for next player...</h4>
+                    <p>The host will start the auction shortly</p>
+                </div>
+            `;
+        }
+    });
+
+    connection.on("ReceivePlayerSold", (data) => {
+        alert(`${data.playerName} sold to ${data.teamName} for ${data.soldPrice} points!`);
+        setTimeout(() => location.reload(), 1000);
+    });
+
+    connection.on("ReceivePauseUpdate", (isPaused) => {
+        const badge = document.getElementById('statusBadge');
+        badge.className = isPaused ? 'badge bg-warning' : 'badge bg-success';
+        badge.textContent = isPaused ? '⏸️ Paused' : '✅ Active';
+        
+        const bidBtn = document.getElementById('bidButton');
+        if (bidBtn) {
+            bidBtn.disabled = isPaused;
+        }
+    });
+
+    connection.on("ReceiveTeamUpdate", (data) => {
+        if (data.teamId === teamId) {
+            document.getElementById('pointsDisplay').textContent = data.remainingPoints;
+        }
+    });
+
+    function placeBid() {
+        const amount = parseInt(document.getElementById('bidAmount').value);
+        if (!amount || amount <= 0) {
+            alert('Please enter a valid bid amount');
+            return;
+        }
+
+        fetch('/Auction/PlaceBid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `lobbyId=${lobbyId}&playerId=${currentPlayerId}&teamId=${teamId}&bidAmount=${amount}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text) });
+            }
+            document.getElementById('bidAmount').value = '';
+        })
+        .catch(err => alert('Error: ' + err.message));
+    }
+
+    function quickBid(increment) {
+        const input = document.getElementById('bidAmount');
+        const currentMin = parseInt(input.min) || 0;
+        input.value = currentMin + increment;
+    }
+</script>
+}
+
+@section Styles {
+<style>
+    body {
+        background: #f8f9fa;
+    }
+</style>
+}
