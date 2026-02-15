@@ -1,7 +1,44 @@
-﻿
-@{
-    ViewData["Title"] = "CreateLobby";
+﻿@{
+    ViewData["Title"] = "Create Lobby";
 }
 
-<h1>CreateLobby</h1>
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h3>🎯 Create Auction Lobby</h3>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div class="mb-3">
+                    <label class="form-label">Your Name (Host)</label>
+                    <input type="text" class="form-control"
+                           name="hostName" required>
+                </div>
 
+                <div class="mb-3">
+                    <label class="form-label">Game/Sport Name</label>
+                    <input type="text" class="form-control"
+                           name="gameName" placeholder="e.g., Football" required>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Number of Teams</label>
+                        <input type="number" class="form-control"
+                               name="totalTeams" value="4" min="2" required>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Points per Team</label>
+                        <input type="number" class="form-control"
+                               name="pointsPerTeam" value="1000" min="100" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg">
+                    Create Lobby
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
