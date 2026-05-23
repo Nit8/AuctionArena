@@ -73,5 +73,41 @@ namespace AuctionArena.Services.Notifications
             _logger.LogInformation("Auction complete: Lobby {LobbyId}", lobbyId);
             await _hubContext.Clients.Group(lobbyId).SendAsync("ReceiveAuctionComplete", message);
         }
+
+        public async Task NotifySaleRevoked(string lobbyId, int playerId, string playerName, int teamId, string teamName, int refundAmount)
+        {
+            _logger.LogInformation("Sale revoked: Lobby {LobbyId}, Player {PlayerName} returned from {TeamName}, refund {Refund}", lobbyId, playerName, teamName, refundAmount);
+            await _hubContext.Clients.Group(lobbyId).SendAsync("ReceiveSaleRevoked", new
+            {
+                playerId,
+                playerName,
+                teamId,
+                teamName,
+                refundAmount
+            });
+        }
+
+        public async Task NotifyBidReset(string lobbyId, int playerId, string playerName, string position)
+        {
+            _logger.LogInformation("Bids reset: Lobby {LobbyId}, Player {PlayerName}", lobbyId, playerName);
+            await _hubContext.Clients.Group(lobbyId).SendAsync("ReceiveBidReset", new
+            {
+                playerId,
+                playerName,
+                position
+            });
+        }
+
+        public async Task NotifyAuctionReactivated(string lobbyId)
+        {
+            _logger.LogInformation("Auction reactivated: Lobby {LobbyId}", lobbyId);
+            await _hubContext.Clients.Group(lobbyId).SendAsync("ReceiveAuctionReactivated");
+        }
+
+        public async Task NotifyTimerUpdate(string lobbyId, int durationSeconds)
+        {
+            _logger.LogInformation("Timer updated: Lobby {LobbyId}, Duration {Duration}s", lobbyId, durationSeconds);
+            await _hubContext.Clients.Group(lobbyId).SendAsync("ReceiveTimerUpdate", durationSeconds);
+        }
     }
 }

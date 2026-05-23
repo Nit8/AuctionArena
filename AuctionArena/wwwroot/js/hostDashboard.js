@@ -16,6 +16,10 @@ async function initHostDashboard(lobbyId) {
     conn.on('pauseUpdate', handlePauseUpdate);
     conn.on('teamUpdate', handleTeamUpdate);
     conn.on('auctionComplete', handleAuctionComplete);
+    conn.on('saleRevoked', handleSaleRevoked);
+    conn.on('bidReset', handleBidReset);
+    conn.on('auctionReactivated', handleAuctionReactivated);
+    conn.on('timerUpdate', handleTimerUpdate);
     conn.on('reconnected', () => { fetchAuctionState(); });
 
     await conn.connect(lobbyId);
@@ -134,13 +138,19 @@ async function handlePlayerSold(data) {
         const count = soldList.children.length + 1;
         const item = document.createElement('div');
         item.className = 'player-card-auction sold';
+        item.setAttribute('data-sold-player-id', data.playerId);
         item.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <div>
                     <strong>${escapeHtml(data.playerName)}</strong><br>
-                    <small style="color:var(--gray-500)">Sold to ${escapeHtml(data.teamName)}</small>
+                    <small style="color:var(--gray-500)">${escapeHtml(data.position || '')} - ${escapeHtml(data.teamName)}</small>
                 </div>
-                <span class="badge-auction badge-success">${data.soldPrice} pts</span>
+                <div style="display:flex;align-items:center;gap:0.5rem">
+                    <span class="badge-auction badge-success">${data.soldPrice} pts</span>
+                    <button class="btn-auction btn-danger-auction btn-sm-auction" onclick="revokeSale(${data.playerId})" title="Revoke Sale" style="padding:0.25rem 0.5rem;font-size:0.7rem">
+                        Revoke
+                    </button>
+                </div>
             </div>
         `;
         soldList.prepend(item);
@@ -161,7 +171,14 @@ function handlePauseUpdate(isPaused) {
     const pauseBtn = document.getElementById('pauseBtn');
     if (pauseBtn) {
         pauseBtn.innerHTML = isPaused ? 'Resume' : 'Pause';
-        pauseBtn.className = isPaused ? 'btn-auction btn-success-auction' : 'btn-auction btn-warning-auction';
+        pauseBtn.className = isPaused ? 'btn-auction btn-success-auction btn-sm-auction' : 'btn-auction btn-warning-auction btn-sm-auction';
+    }
+    // Update lobby status badge
+    const badge = document.getElementById('lobbyStatusBadge');
+    const text = document.getElementById('lobbyStatusText');
+    if (badge && text) {
+        badge.className = `viewer-status-badge ${isPaused ? 'paused' : 'live'}`;
+        text.textContent = isPaused ? 'PAUSED' : 'ACTIVE';
     }
     ToastManager.show(isPaused ? 'Auction paused' : 'Auction resumed', 'info');
 }
@@ -173,6 +190,87 @@ function handleTeamUpdate(data) {
 
 function handleAuctionComplete(message) {
     ToastManager.show(message, 'success', 8000);
+    // Update lobby status badge
+    const badge = document.getElementById('lobbyStatusBadge');
+    const text = document.getElementById('lobbyStatusText');
+    if (badge && text) {
+        badge.className = 'viewer-status-badge ended';
+        text.textContent = 'ENDED';
+    }
+}
+
+function handleSaleRevoked(data) {
+    ToastManager.show(`Sale revoked: ${data.playerName} returned from ${data.teamName}`, 'warning', 5000);
+
+    // Remove from sold list
+    const soldItem = document.querySelector(`[data-sold-player-id="${data.playerId}"]`);
+    if (soldItem) soldItem.remove();
+    const soldCountEl = document.getElementById('soldCount');
+    if (soldCountEl) soldCountEl.textContent = Math.max(0, parseInt(soldCountEl.textContent) - 1);
+
+    // Add back to available list
+    const availList = document.querySelector('.scroll-list .player-card-auction')?.parentElement;
+    if (availList) {
+        const item = document.createElement('div');
+        item.className = 'player-card-auction';
+        item.setAttribute('data-player-id', data.playerId);
+        item.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <strong style="font-size:0.9rem">${escapeHtml(data.playerName)}</strong><br>
+                    <small style="color:var(--gray-500)"></small>
+                </div>
+                <button class="btn-auction btn-primary-auction btn-sm-auction" onclick="startAuction(${data.playerId})">
+                    Start
+                </button>
+            </div>
+        `;
+        availList.prepend(item);
+        const availCount = document.getElementById('availableCount');
+        if (availCount) availCount.textContent = parseInt(availCount.textContent) + 1;
+    }
+
+    // Update team display
+    updateTeamDisplay(data.teamId, data.teamName);
+
+    // Update lobby status back to active
+    const badge = document.getElementById('lobbyStatusBadge');
+    const text = document.getElementById('lobbyStatusText');
+    if (badge && text && text.textContent === 'ENDED') {
+        badge.className = 'viewer-status-badge live';
+        text.textContent = 'ACTIVE';
+    }
+}
+
+function handleBidReset(data) {
+    const bidDisplay = document.getElementById('bidDisplay');
+    if (bidDisplay) {
+        bidDisplay.innerHTML = `<h3 style="color:var(--gray-400);font-weight:600">Bids reset - Waiting for bids...</h3>`;
+    }
+    const bidHistoryList = document.getElementById('bidHistoryList');
+    if (bidHistoryList) {
+        bidHistoryList.innerHTML = '';
+    }
+    const confirmBtn = document.getElementById('confirmSaleBtn');
+    if (confirmBtn) confirmBtn.disabled = true;
+    timer.start();
+    ToastManager.show(`Bids reset for ${data.playerName}`, 'warning');
+}
+
+function handleAuctionReactivated() {
+    const badge = document.getElementById('lobbyStatusBadge');
+    const text = document.getElementById('lobbyStatusText');
+    if (badge && text) {
+        badge.className = 'viewer-status-badge live';
+        text.textContent = 'ACTIVE';
+    }
+    ToastManager.show('Auction reactivated!', 'success');
+}
+
+function handleTimerUpdate(durationSeconds) {
+    timer.setDuration(durationSeconds);
+    timer.reset();
+    ToastManager.show(`Timer set to ${durationSeconds} seconds`, 'info', 2000);
 }
 
 function addBidToHistory(teamName, bidAmount) {
@@ -257,6 +355,90 @@ async function addPoints(teamId, teamName) {
             ToastManager.show(result.message || 'Failed to add points', 'error');
         }
     }
+}
+
+async function deductPoints(teamId, teamName) {
+    const points = prompt(`Deduct points from ${teamName}:`, '100');
+    if (points && !isNaN(points) && parseInt(points) > 0) {
+        const result = await conn.post('/Auction/DeductTeamPoints', {
+            lobbyId: currentLobbyId,
+            teamId,
+            points: parseInt(points)
+        });
+        if (result.success) {
+            ToastManager.show(`Deducted ${points} points from ${teamName}`, 'success');
+        } else {
+            ToastManager.show(result.message || 'Failed to deduct points', 'error');
+        }
+    }
+}
+
+async function setPoints(teamId, teamName) {
+    const points = prompt(`Set ${teamName}'s points to:`, '1000');
+    if (points && !isNaN(points) && parseInt(points) >= 0) {
+        const result = await conn.post('/Auction/SetTeamPoints', {
+            teamId,
+            points: parseInt(points)
+        });
+        if (result.success) {
+            ToastManager.show(`Set ${teamName} points to ${points}`, 'success');
+        } else {
+            ToastManager.show(result.message || 'Failed to set points', 'error');
+        }
+    }
+}
+
+async function revokeSale(playerId) {
+    if (!confirm('Are you sure you want to revoke this sale? The player will return to available and points will be refunded.')) return;
+    const result = await conn.post('/Auction/RevokeSale', { lobbyId: currentLobbyId, playerId });
+    if (result.success) {
+        ToastManager.show('Sale revoked successfully', 'success');
+    } else {
+        ToastManager.show(result.message || 'Failed to revoke sale', 'error');
+    }
+}
+
+async function resetCurrentBid() {
+    if (!confirm('Are you sure you want to reset all bids on the current player?')) return;
+    const result = await conn.post('/Auction/ResetCurrentBid', { lobbyId: currentLobbyId });
+    if (result.success) {
+        ToastManager.show('Bids reset successfully', 'success');
+    } else {
+        ToastManager.show(result.message || 'Failed to reset bids', 'error');
+    }
+}
+
+async function endAuction() {
+    if (!confirm('Are you sure you want to end the auction? This cannot be undone (but you can reactivate later).')) return;
+    const result = await conn.post('/Auction/EndAuction', { lobbyId: currentLobbyId });
+    if (result.success) {
+        ToastManager.show('Auction ended', 'success');
+    } else {
+        ToastManager.show(result.message || 'Failed to end auction', 'error');
+    }
+}
+
+async function reactivateAuction() {
+    if (!confirm('Reactivate the auction?')) return;
+    const result = await conn.post('/Auction/ReactivateAuction', { lobbyId: currentLobbyId });
+    if (result.success) {
+        ToastManager.show('Auction reactivated!', 'success');
+    } else {
+        ToastManager.show(result.message || 'Failed to reactivate auction', 'error');
+    }
+}
+
+async function setTimerDuration(seconds) {
+    const result = await conn.post('/Auction/SetTimerDuration', { lobbyId: currentLobbyId, durationSeconds: seconds });
+    if (result.success) {
+        ToastManager.show(`Timer set to ${seconds} seconds`, 'success', 2000);
+    } else {
+        ToastManager.show(result.message || 'Failed to set timer', 'error');
+    }
+}
+
+function exportData() {
+    window.open(`/Auction/ExportSummaryCsv/${currentLobbyId}?type=all`, '_blank');
 }
 
 async function deletePlayer(playerId) {

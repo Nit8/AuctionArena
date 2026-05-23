@@ -1,0 +1,413 @@
+@model AuctionArena.Models.AuctionSummaryViewModel
+@{
+    ViewData["Title"] = "Auction Summary";
+}
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card-auction-dark p-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h2 style="margin:0;font-weight:800;font-size:1.5rem;color:white">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.5rem;vertical-align:middle">
+                                <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            @Model.Lobby.GameName - Auction Summary
+                        </h2>
+                        <p style="margin:0;opacity:0.7;color:rgba(255,255,255,0.6)">Lobby: <strong style="letter-spacing:3px">@Model.Lobby.LobbyId</strong> &bull; Host: @Model.Lobby.HostName</p>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <a href="/Auction/ExportSummaryCsv/@Model.Lobby.LobbyId?type=all" class="btn-auction btn-primary-auction btn-sm-auction">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.25rem">
+                                <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Export All CSV
+                        </a>
+                        <a href="/Auction/ExportSummaryCsv/@Model.Lobby.LobbyId?type=teamwise" class="btn-auction btn-success-auction btn-sm-auction">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.25rem">
+                                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                            </svg>
+                            Team CSV
+                        </a>
+                        <a href="/Auction/ExportSummaryCsv/@Model.Lobby.LobbyId?type=playerwise" class="btn-auction btn-sm-auction" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.25rem">
+                                <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Player CSV
+                        </a>
+                        <a href="/Auction/HostDashboard/@Model.Lobby.LobbyId" class="btn-auction btn-ghost btn-sm-auction">Back to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Stats Row -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-value" style="color:var(--primary-dark)">@Model.TotalPlayers</div>
+                    <div class="stat-label">Total Players</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-value" style="color:#059669">@Model.SoldCount</div>
+                    <div class="stat-label">Sold</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-value" style="color:#dc2626">@Model.UnsoldCount</div>
+                    <div class="stat-label">Unsold</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-value" style="color:#6366f1">@Model.TotalPointsSpent</div>
+                    <div class="stat-label">Total Points Spent</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Stats Row -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-value" style="color:#8b5cf6;font-size:1.5rem">@Model.AverageSoldPrice</div>
+                    <div class="stat-label">Avg Sold Price</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-value" style="color:#d97706;font-size:1.5rem">@Model.TotalPointsRemaining</div>
+                    <div class="stat-label">Points Remaining</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-value" style="color:#059669;font-size:1.25rem">@Model.HighestSoldPlayer</div>
+                    <div class="stat-label">Most Expensive (@Model.HighestSoldPrice pts - @Model.HighestSoldTeam)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-value" style="color:#dc2626;font-size:1.25rem">@(Model.HighestBidderTeam?.TeamName ?? "N/A")</div>
+                    <div class="stat-label">Highest Bidder (@(Model.HighestBidderTeam?.TotalSpent ?? 0) pts spent)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Highlights Cards -->
+    @if (Model.MostPlayersTeam != null || Model.MostEconomicalTeam != null)
+    {
+        <div class="row g-3 mb-3">
+            @if (Model.MostPlayersTeam != null)
+            {
+                <div class="col-md-4">
+                    <div class="card-auction" style="border-left:4px solid #059669">
+                        <div class="card-body-auction">
+                            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+                                <div style="width:2.5rem;height:2.5rem;border-radius:0.75rem;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                                </div>
+                                <div>
+                                    <div style="font-weight:800;font-size:1.1rem">@Model.MostPlayersTeam.TeamName</div>
+                                    <div style="font-size:0.75rem;color:var(--gray-500)">Most Players</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:1rem">
+                                <span class="badge-auction badge-success">@Model.MostPlayersTeam.PlayerCount Players</span>
+                                <span class="badge-auction badge-primary">@Model.MostPlayersTeam.TotalSpent pts spent</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (Model.MostEconomicalTeam != null)
+            {
+                <div class="col-md-4">
+                    <div class="card-auction" style="border-left:4px solid #6366f1">
+                        <div class="card-body-auction">
+                            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+                                <div style="width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--gradient-primary);display:flex;align-items:center;justify-content:center">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
+                                <div>
+                                    <div style="font-weight:800;font-size:1.1rem">@Model.MostEconomicalTeam.TeamName</div>
+                                    <div style="font-size:0.75rem;color:var(--gray-500)">Best Value (Lowest Avg)</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:1rem">
+                                <span class="badge-auction badge-info">Avg @Model.MostEconomicalTeam.AvgPricePerPlayer pts/player</span>
+                                <span class="badge-auction badge-success">@Model.MostEconomicalTeam.PlayerCount Players</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (Model.HighestBidderTeam != null)
+            {
+                <div class="col-md-4">
+                    <div class="card-auction" style="border-left:4px solid #d97706">
+                        <div class="card-body-auction">
+                            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+                                <div style="width:2.5rem;height:2.5rem;border-radius:0.75rem;background:linear-gradient(135deg,#d97706,#f59e0b);display:flex;align-items:center;justify-content:center">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                </div>
+                                <div>
+                                    <div style="font-weight:800;font-size:1.1rem">@Model.HighestBidderTeam.TeamName</div>
+                                    <div style="font-size:0.75rem;color:var(--gray-500)">Highest Bidder</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:1rem">
+                                <span class="badge-auction badge-warning">@Model.HighestBidderTeam.TotalSpent pts spent</span>
+                                <span class="badge-auction badge-success">@Model.HighestBidderTeam.SpendPercentage% budget used</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="row g-3">
+        <!-- Team Summaries -->
+        <div class="col-lg-8">
+            <!-- Team Budget Comparison -->
+            <div class="card-auction mb-3">
+                <div class="card-header-auction card-header-primary">
+                    <span style="font-weight:700">Team Budget Overview</span>
+                    <span class="badge-auction" style="background:rgba(255,255,255,0.2);color:white">@Model.TeamSummaries.Count Teams</span>
+                </div>
+                <div class="card-body-auction">
+                    @foreach (var team in Model.TeamSummaries)
+                    {
+                        <div style="margin-bottom:1.25rem" data-team-summary-id="@team.TeamId">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+                                <div>
+                                    <strong style="font-size:0.95rem">@team.TeamName</strong>
+                                    <span style="color:var(--gray-500);font-size:0.8rem;margin-left:0.5rem">(@team.OwnerName)</span>
+                                </div>
+                                <div style="display:flex;gap:0.5rem;align-items:center">
+                                    <span class="badge-auction badge-info">@team.PlayerCount Players</span>
+                                    <span class="badge-auction badge-success">@team.RemainingPoints Remaining</span>
+                                    <span class="badge-auction badge-warning">@team.TotalSpent Spent</span>
+                                </div>
+                            </div>
+                            <div style="height:10px;background:var(--gray-100);border-radius:5px;overflow:hidden;display:flex">
+                                <div style="width:@(team.SpendPercentage)%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:5px 0 0 5px;transition:width 0.5s ease" title="Spent: @team.TotalSpent pts"></div>
+                                <div style="width:@(100 - team.SpendPercentage)%;background:linear-gradient(90deg,#10b981,#34d399);border-radius:0 5px 5px 0;transition:width 0.5s ease" title="Remaining: @team.RemainingPoints pts"></div>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin-top:0.375rem">
+                                <span style="font-size:0.7rem;color:var(--gray-500)">Spent: @team.TotalSpent / @team.InitialPoints pts (@team.SpendPercentage%)</span>
+                                <span style="font-size:0.7rem;color:var(--gray-500)">Avg: @team.AvgPricePerPlayer pts/player</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Team-Wise Player Breakdown -->
+            @foreach (var team in Model.TeamSummaries)
+            {
+                <div class="card-auction mb-3">
+                    <div class="card-header-auction">
+                        <div style="display:flex;align-items:center;gap:0.75rem">
+                            <div style="width:2rem;height:2rem;border-radius:0.5rem;background:var(--gradient-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:0.75rem">@team.PlayerCount</div>
+                            <span style="font-weight:700">@team.TeamName</span>
+                            <span style="color:var(--gray-500);font-size:0.8rem">- @team.OwnerName</span>
+                        </div>
+                        <div style="display:flex;gap:0.5rem">
+                            <span class="badge-auction badge-warning">@team.TotalSpent pts</span>
+                            <span class="badge-auction badge-success">@team.RemainingPoints remaining</span>
+                        </div>
+                    </div>
+                    <div class="card-body-auction p-0">
+                        @if (team.Players.Any())
+                        {
+                            <table class="table table-sm mb-0" style="font-size:0.85rem">
+                                <thead style="background:rgba(99,102,241,0.05)">
+                                    <tr>
+                                        <th style="padding:0.5rem 1rem;border-bottom:2px solid var(--gray-200)">#</th>
+                                        <th style="padding:0.5rem 1rem;border-bottom:2px solid var(--gray-200)">Player</th>
+                                        <th style="padding:0.5rem 1rem;border-bottom:2px solid var(--gray-200)">Position</th>
+                                        <th style="padding:0.5rem 1rem;border-bottom:2px solid var(--gray-200);text-align:right">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < team.Players.Count; i++)
+                                    {
+                                        var player = team.Players[i];
+                                        <tr style="border-bottom:1px solid var(--gray-100)">
+                                            <td style="padding:0.5rem 1rem;color:var(--gray-500)">@(i + 1)</td>
+                                            <td style="padding:0.5rem 1rem;font-weight:600">@player.PlayerName</td>
+                                            <td style="padding:0.5rem 1rem;color:var(--gray-500)">@player.Position</td>
+                                            <td style="padding:0.5rem 1rem;text-align:right">
+                                                <span class="badge-auction badge-primary">@(player.SoldPrice) pts</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                    <tr style="background:rgba(99,102,241,0.05)">
+                                        <td colspan="3" style="padding:0.5rem 1rem;font-weight:700;text-align:right">Total Spent:</td>
+                                        <td style="padding:0.5rem 1rem;text-align:right;font-weight:800;color:var(--primary-dark)">@team.TotalSpent pts</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="text-center p-3" style="color:var(--gray-400)">No players bought yet</div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="col-lg-4">
+            <!-- Most Expensive Players -->
+            <div class="card-auction mb-3">
+                <div class="card-header-auction card-header-warning">
+                    <span style="font-weight:700">Top 10 Most Expensive</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div class="card-body-auction p-2 scroll-list" style="max-height:400px">
+                    @foreach (var player in Model.MostExpensivePlayers)
+                    {
+                        var rank = Model.MostExpensivePlayers.IndexOf(player) + 1;
+                        <div class="player-card-auction" style="border-left-color:@(rank <= 3 ? "#d97706" : "var(--primary)")">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                    <div style="width:1.5rem;height:1.5rem;border-radius:50%;background:@(rank <= 3 ? "linear-gradient(135deg,#d97706,#f59e0b)" : "var(--gray-100)");color:@(rank <= 3 ? "white" : "var(--gray-500)");display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.7rem">@rank</div>
+                                    <div>
+                                        <strong style="font-size:0.85rem">@player.PlayerName</strong><br>
+                                        <small style="color:var(--gray-500)">@player.Position - @player.SoldToTeam</small>
+                                    </div>
+                                </div>
+                                <span class="badge-auction badge-warning">@player.SoldPrice pts</span>
+                            </div>
+                        </div>
+                    }
+                    @if (!Model.MostExpensivePlayers.Any())
+                    {
+                        <p class="text-center text-muted p-3 mb-0">No players sold yet</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Position Breakdown -->
+            @if (Model.PositionBreakdowns.Any())
+            {
+                <div class="card-auction mb-3">
+                    <div class="card-header-auction card-header-info">
+                        <span style="font-weight:700">Position Breakdown</span>
+                        <span class="badge-auction" style="background:rgba(255,255,255,0.2);color:white">@Model.PositionBreakdowns.Count Positions</span>
+                    </div>
+                    <div class="card-body-auction p-0">
+                        <table class="table table-sm mb-0" style="font-size:0.8rem">
+                            <thead style="background:rgba(59,130,246,0.05)">
+                                <tr>
+                                    <th style="padding:0.5rem 0.75rem;border-bottom:2px solid var(--gray-200)">Position</th>
+                                    <th style="padding:0.5rem 0.75rem;border-bottom:2px solid var(--gray-200);text-align:center">Sold/Total</th>
+                                    <th style="padding:0.5rem 0.75rem;border-bottom:2px solid var(--gray-200);text-align:right">Spent</th>
+                                    <th style="padding:0.5rem 0.75rem;border-bottom:2px solid var(--gray-200);text-align:right">Avg</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var pos in Model.PositionBreakdowns)
+                                {
+                                    <tr style="border-bottom:1px solid var(--gray-100)">
+                                        <td style="padding:0.5rem 0.75rem;font-weight:600">@pos.Position</td>
+                                        <td style="padding:0.5rem 0.75rem;text-align:center">
+                                            <span style="color:#059669;font-weight:600">@pos.SoldCount</span>/<span>@pos.TotalCount</span>
+                                        </td>
+                                        <td style="padding:0.5rem 0.75rem;text-align:right;font-weight:600;color:var(--primary-dark)">@pos.TotalSpent</td>
+                                        <td style="padding:0.5rem 0.75rem;text-align:right;color:var(--gray-500)">@pos.AveragePrice</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Unsold Players -->
+            <div class="card-auction mb-3">
+                <div class="card-header-auction card-header-info">
+                    <span style="font-weight:700">Unsold Players</span>
+                    <span class="badge-auction badge-danger">@Model.UnsoldCount</span>
+                </div>
+                <div class="card-body-auction p-2 scroll-list" style="max-height:350px">
+                    @foreach (var player in Model.UnsoldPlayers)
+                    {
+                        <div class="player-card-auction" style="border-left-color:var(--danger);opacity:0.75">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div>
+                                    <strong style="font-size:0.85rem">@player.PlayerName</strong><br>
+                                    <small style="color:var(--gray-500)">@player.Position</small>
+                                </div>
+                                <span class="badge-auction badge-danger">UNSOLD</span>
+                            </div>
+                        </div>
+                    }
+                    @if (!Model.UnsoldPlayers.Any())
+                    {
+                        <div class="text-center p-4" style="color:var(--gray-400)">
+                            <svg style="width:2rem;height:2rem;margin-bottom:0.5rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p class="mb-0">All players sold!</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Complete Sold Player List -->
+            <div class="card-auction">
+                <div class="card-header-auction card-header-success">
+                    <span style="font-weight:700">All Sold Players</span>
+                    <span class="badge-auction badge-success">@Model.SoldCount</span>
+                </div>
+                <div class="card-body-auction p-2 scroll-list" style="max-height:400px">
+                    @foreach (var player in Model.SoldPlayers)
+                    {
+                        <div class="player-card-auction sold">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div>
+                                    <strong style="font-size:0.85rem">@player.PlayerName</strong><br>
+                                    <small style="color:var(--gray-500)">@player.Position - @player.SoldToTeam</small>
+                                </div>
+                                <span class="badge-auction badge-success">@(player.SoldPrice) pts</span>
+                            </div>
+                        </div>
+                    }
+                    @if (!Model.SoldPlayers.Any())
+                    {
+                        <p class="text-center text-muted p-3 mb-0">No players sold yet</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,52 @@
+@model AuctionArena.Models.WatchAuctionViewModel
+@{
+    ViewData["Title"] = "Watch Live Auction";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-7">
+            <div class="text-center text-white mb-5">
+                <div style="width:5rem;height:5rem;border-radius:1.25rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                </div>
+                <h1 style="font-size:2.5rem;font-weight:900;margin-bottom:0.5rem">Watch Live</h1>
+                <p class="lead" style="opacity:0.85">Enter a lobby code to spectate the auction in real-time</p>
+            </div>
+
+            <div class="card-auction">
+                <div class="card-body-auction p-4">
+                    <form asp-action="WatchAuction" method="post">
+                        <div asp-validation-summary="ModelOnly" class="global-error"></div>
+
+                        <div class="mb-4">
+                            <label asp-for="LobbyId" class="form-label" style="font-weight:600;color:var(--gray-700)">Lobby Code</label>
+                            <input asp-for="LobbyId" class="form-control-auction form-control-lg-auction"
+                                   placeholder="Enter lobby code"
+                                   style="text-align:center;font-size:1.5rem;letter-spacing:3px;text-transform:uppercase"
+                                   autocomplete="off" />
+                            <span asp-validation-for="LobbyId" class="field-error"></span>
+                        </div>
+
+                        <button type="submit" class="btn-auction btn-primary-auction btn-lg-auction w-100" style="font-size:1.1rem">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.5rem">
+                                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            Watch Auction
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="/" style="color:rgba(255,255,255,0.6);text-decoration:none;font-size:0.875rem">
+                    Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

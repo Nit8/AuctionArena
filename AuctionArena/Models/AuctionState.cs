@@ -8,5 +8,6 @@ namespace AuctionArena.Models
         public int? CurrentHighestBidderTeamId { get; set; }
         public DateTime? AuctionStartTime { get; set; }
         public int Version { get; set; } // Optimistic concurrency token
+        public int TimerDuration { get; set; } = 30; // Countdown timer in seconds (5-300)
     }
 }

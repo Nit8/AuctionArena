@@ -1,0 +1,200 @@
+@model AuctionArena.Models.ViewerDashboardViewModel
+@{
+    ViewData["Title"] = "Viewer Dashboard";
+    Layout = "_ViewerLayout";
+}
+
+<div class="viewer-dashboard">
+    @Html.AntiForgeryToken()
+
+    <!-- Animated Background Pattern -->
+    <div class="viewer-bg-pattern"></div>
+
+    <!-- Header -->
+    <div class="viewer-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="viewer-title">@Model.Lobby.GameName</h1>
+                <p class="viewer-subtitle">Lobby: <strong style="letter-spacing:3px">@Model.Lobby.LobbyId</strong></p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="viewer-status-badge @(Model.IsActive ? (Model.IsPaused ? "paused" : "live") : "ended")" id="statusBadge">
+                    <span class="pulse-dot"></span>
+                    <span id="statusText">@(Model.IsActive ? (Model.IsPaused ? "PAUSED" : "LIVE") : "ENDED")</span>
+                </div>
+                <div id="countdownTimer" class="viewer-countdown"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="viewer-stats-bar">
+        <div class="viewer-stat">
+            <div class="viewer-stat-value">@Model.Teams.Count</div>
+            <div class="viewer-stat-label">Teams</div>
+        </div>
+        <div class="viewer-stat-divider"></div>
+        <div class="viewer-stat">
+            <div class="viewer-stat-value" id="availableCount">@Model.RemainingPlayers.Count</div>
+            <div class="viewer-stat-label">Available</div>
+        </div>
+        <div class="viewer-stat-divider"></div>
+        <div class="viewer-stat">
+            <div class="viewer-stat-value" id="soldCount">@Model.SoldPlayers.Count</div>
+            <div class="viewer-stat-label">Sold</div>
+        </div>
+        <div class="viewer-stat-divider"></div>
+        <div class="viewer-stat">
+            <div class="viewer-stat-value" id="totalSpent">@Model.TotalSpent</div>
+            <div class="viewer-stat-label">Total Spent</div>
+        </div>
+    </div>
+
+    <div class="viewer-main">
+        <div class="viewer-left">
+            <!-- Hero Auction Panel -->
+            <div class="viewer-hero-panel" id="heroAuctionPanel">
+                @if (Model.CurrentPlayer != null)
+                {
+                    <div class="viewer-hero-content">
+                        <div class="viewer-hero-position">@Model.CurrentPlayer.Position</div>
+                        <div class="viewer-hero-name">@Model.CurrentPlayer.PlayerName</div>
+                        <div class="viewer-hero-bid" id="bidDisplay">
+                            @if (Model.CurrentHighestBid.HasValue)
+                            {
+                                <div class="viewer-bid-amount">@Model.CurrentHighestBid</div>
+                                <div class="viewer-bid-team">by @Model.CurrentHighestBidder?.TeamName</div>
+                            }
+                            else
+                            {
+                                <div class="viewer-bid-waiting">Waiting for bids...</div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="viewer-hero-empty">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3">
+                            <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <div style="font-size:1.25rem;font-weight:600;opacity:0.5;margin-top:1rem">No player in auction</div>
+                        <div style="font-size:0.9rem;opacity:0.3">Waiting for host to start</div>
+                    </div>
+                }
+            </div>
+
+            <!-- Team Budgets -->
+            <div class="viewer-card">
+                <div class="viewer-card-header">
+                    <span>Team Budgets</span>
+                </div>
+                <div class="viewer-card-body" id="teamBudgetsList">
+                    @foreach (var team in Model.Teams)
+                    {
+                        var budgetPercent = Model.Lobby.PointsPerTeam > 0
+                            ? Math.Round((double)team.RemainingPoints / Model.Lobby.PointsPerTeam * 100)
+                            : 0;
+                        <div class="viewer-budget-item" data-team-id="@team.TeamId">
+                            <div class="viewer-budget-info">
+                                <span class="viewer-budget-name">@team.TeamName</span>
+                                <span class="viewer-budget-points">@team.RemainingPoints pts</span>
+                            </div>
+                            <div class="viewer-budget-bar">
+                                <div class="viewer-budget-fill" style="width:@budgetPercent%"></div>
+                            </div>
+                            <div class="viewer-budget-meta">
+                                <span>@team.PlayerCount players</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Live Bid Feed -->
+            <div class="viewer-card">
+                <div class="viewer-card-header">
+                    <span>Live Bid Feed</span>
+                    <span class="viewer-live-indicator">LIVE</span>
+                </div>
+                <div class="viewer-card-body viewer-bid-feed" id="bidFeedList">
+                    @foreach (var bid in Model.RecentBids.Take(15))
+                    {
+                        var teamName = Model.Teams.FirstOrDefault(t => t.TeamId == bid.TeamId)?.TeamName ?? "Unknown";
+                        <div class="viewer-bid-feed-item">
+                            <div class="viewer-bid-feed-team">@teamName</div>
+                            <div class="viewer-bid-feed-amount">@bid.BidAmount pts</div>
+                        </div>
+                    }
+                    @if (!Model.RecentBids.Any())
+                    {
+                        <div class="viewer-empty-state">No bids yet</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="viewer-right">
+            <!-- Available Players -->
+            <div class="viewer-card viewer-sidebar-card">
+                <div class="viewer-card-header viewer-card-header-green">
+                    <span>Available Players</span>
+                    <span class="viewer-badge" id="availableCountBadge">@Model.RemainingPlayers.Count</span>
+                </div>
+                <div class="viewer-card-body viewer-player-list" id="availablePlayersList">
+                    @foreach (var player in Model.RemainingPlayers)
+                    {
+                        <div class="viewer-player-item" data-player-id="@player.PlayerId">
+                            <div class="viewer-player-name">@player.PlayerName</div>
+                            <div class="viewer-player-position">@player.Position</div>
+                        </div>
+                    }
+                    @if (!Model.RemainingPlayers.Any())
+                    {
+                        <div class="viewer-empty-state">No available players</div>
+                    }
+                </div>
+            </div>
+
+            <!-- Sold Players -->
+            <div class="viewer-card viewer-sidebar-card">
+                <div class="viewer-card-header viewer-card-header-blue">
+                    <span>Sold Players</span>
+                    <span class="viewer-badge viewer-badge-green" id="soldCountBadge">@Model.SoldPlayers.Count</span>
+                </div>
+                <div class="viewer-card-body viewer-player-list" id="soldPlayersList">
+                    @foreach (var player in Model.SoldPlayers)
+                    {
+                        var buyerTeam = Model.Teams.FirstOrDefault(t => t.TeamId == player.SoldToTeamId);
+                        <div class="viewer-player-item viewer-player-sold" data-player-id="@player.PlayerId">
+                            <div class="viewer-player-info">
+                                <div class="viewer-player-name">@player.PlayerName</div>
+                                <div class="viewer-player-meta">
+                                    <span class="viewer-player-position">@player.Position</span>
+                                    @if (buyerTeam != null)
+                                    {
+                                        <span class="viewer-player-buyer">@buyerTeam.TeamName</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="viewer-player-price">@player.SoldPrice pts</div>
+                        </div>
+                    }
+                    @if (!Model.SoldPlayers.Any())
+                    {
+                        <div class="viewer-empty-state">No sold players yet</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="~/js/viewerDashboard.js"></script>
+<script>
+    const lobbyId = '@Model.Lobby.LobbyId';
+    const initialPointsPerTeam = @Model.Lobby.PointsPerTeam;
+    initViewerDashboard(lobbyId, initialPointsPerTeam);
+</script>
+}

@@ -110,6 +110,7 @@ namespace AuctionArena.Services
             MigrateAddColumnIfNotExists(connection, "Lobbies", "PasswordHash", "TEXT");
             MigrateAddColumnIfNotExists(connection, "Lobbies", "PasswordSalt", "TEXT");
             MigrateAddColumnIfNotExists(connection, "AuctionState", "Version", "INTEGER DEFAULT 1");
+            MigrateAddColumnIfNotExists(connection, "AuctionState", "TimerDuration", "INTEGER DEFAULT 30");
 
             _logger.LogInformation("Database initialized successfully with indexes");
         }
