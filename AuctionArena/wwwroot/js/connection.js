@@ -57,6 +57,22 @@ class AuctionConnection {
         this.connection.on('ReceiveAuctionComplete', (message) => {
             this.trigger('auctionComplete', message);
         });
+
+        this.connection.on('ReceiveSaleRevoked', (data) => {
+            this.trigger('saleRevoked', data);
+        });
+
+        this.connection.on('ReceiveBidReset', (data) => {
+            this.trigger('bidReset', data);
+        });
+
+        this.connection.on('ReceiveAuctionReactivated', () => {
+            this.trigger('auctionReactivated', null);
+        });
+
+        this.connection.on('ReceiveTimerUpdate', (durationSeconds) => {
+            this.trigger('timerUpdate', durationSeconds);
+        });
     }
 
     setupReconnectionHandlers() {
@@ -209,6 +225,14 @@ class CountdownTimer {
         this.clearInterval();
         this.remaining = 0;
         this.updateDisplay();
+    }
+
+    setDuration(seconds) {
+        this.duration = seconds;
+        if (this.isRunning) {
+            this.remaining = seconds;
+            this.updateDisplay();
+        }
     }
 
     clearInterval() {

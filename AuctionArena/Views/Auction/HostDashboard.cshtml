@@ -16,11 +16,59 @@
                         <h2 style="margin:0;font-weight:800;font-size:1.5rem">@Model.Lobby.GameName Auction</h2>
                         <p style="margin:0;opacity:0.7">Lobby Code: <strong style="letter-spacing:3px">@Model.Lobby.LobbyId</strong></p>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <div class="viewer-status-badge @(Model.Lobby.IsActive ? (Model.IsPaused ? "paused" : "live") : "ended")" id="lobbyStatusBadge" style="font-size:0.7rem;padding:0.25rem 0.75rem">
+                            <span class="pulse-dot" style="width:6px;height:6px"></span>
+                            <span id="lobbyStatusText">@(Model.Lobby.IsActive ? (Model.IsPaused ? "PAUSED" : "ACTIVE") : "ENDED")</span>
+                        </div>
+                        <a href="/Auction/ViewerDashboard/@Model.Lobby.LobbyId" target="_blank" class="btn-auction btn-ghost btn-sm-auction" title="Open Viewer Dashboard">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.25rem">
+                                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            Viewer
+                        </a>
                         <a href="/Auction/ManagePlayers/@Model.Lobby.LobbyId" class="btn-auction btn-ghost btn-sm-auction">Manage Players</a>
                         <button class="btn-auction @(Model.IsPaused ? "btn-success-auction" : "btn-warning-auction") btn-sm-auction" id="pauseBtn" onclick="togglePause()">
                             @(Model.IsPaused ? "Resume" : "Pause")
                         </button>
+                        @if (Model.Lobby.IsActive)
+                        {
+                            <button class="btn-auction btn-danger-auction btn-sm-auction" onclick="endAuction()">End Auction</button>
+                        }
+                        else
+                        {
+                            <button class="btn-auction btn-success-auction btn-sm-auction" onclick="reactivateAuction()">Reactivate</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timer Presets & Quick Actions -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="card-auction">
+                <div class="card-body-auction p-3">
+                    <div style="font-weight:700;font-size:0.85rem;margin-bottom:0.5rem">Timer Duration</div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn-auction btn-sm-auction" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.3)" onclick="setTimerDuration(15)">15s</button>
+                        <button class="btn-auction btn-sm-auction" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.3)" onclick="setTimerDuration(30)">30s</button>
+                        <button class="btn-auction btn-sm-auction" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.3)" onclick="setTimerDuration(45)">45s</button>
+                        <button class="btn-auction btn-sm-auction" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.3)" onclick="setTimerDuration(60)">60s</button>
+                        <button class="btn-auction btn-sm-auction" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.3)" onclick="setTimerDuration(90)">90s</button>
+                        <button class="btn-auction btn-sm-auction" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.3)" onclick="setTimerDuration(120)">2m</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card-auction">
+                <div class="card-body-auction p-3">
+                    <div style="font-weight:700;font-size:0.85rem;margin-bottom:0.5rem">Quick Actions</div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn-auction btn-warning-auction btn-sm-auction" onclick="resetCurrentBid()">Reset Bid</button>
+                        <button class="btn-auction btn-primary-auction btn-sm-auction" onclick="exportData()">Export Data</button>
                     </div>
                 </div>
             </div>
@@ -110,9 +158,16 @@
                                             <h6 style="font-weight:700;margin:0">@team.TeamName</h6>
                                             <small style="color:var(--gray-500)">Owner: @team.OwnerName</small>
                                         </div>
-                                        <button class="btn-auction btn-primary-auction btn-sm-auction" onclick="addPoints(@team.TeamId, '@team.TeamName')">
-                                            Add Points
-                                        </button>
+                                        <div class="dropdown">
+                                            <button class="btn-auction btn-sm-auction" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.3)" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Actions
+                                            </button>
+                                            <ul class="dropdown-menu" style="background:var(--gray-800);border:1px solid rgba(255,255,255,0.1)">
+                                                <li><a class="dropdown-item text-white" href="#" onclick="addPoints(@team.TeamId, '@team.TeamName'); return false;">Add Points</a></li>
+                                                <li><a class="dropdown-item text-white" href="#" onclick="deductPoints(@team.TeamId, '@team.TeamName'); return false;">Deduct Points</a></li>
+                                                <li><a class="dropdown-item text-white" href="#" onclick="setPoints(@team.TeamId, '@team.TeamName'); return false;">Set Points</a></li>
+                                            </ul>
+                                        </div>
                                     </div>
                                     <div style="display:flex;gap:0.5rem">
                                         <span class="badge-auction badge-info team-player-count">@team.PlayerCount Players</span>
@@ -131,7 +186,7 @@
             <div class="card-auction mb-3">
                 <div class="card-header-auction card-header-success">
                     <span style="font-weight:700">Available Players</span>
-                    <span class="badge-aunction badge-primary" id="availableCount">@Model.RemainingPlayers.Count</span>
+                    <span class="badge-auction badge-primary" id="availableCount">@Model.RemainingPlayers.Count</span>
                 </div>
                 <div class="card-body-auction p-2 scroll-list">
                     @foreach (var player in Model.RemainingPlayers)
@@ -163,13 +218,25 @@
                 <div class="card-body-auction p-2 scroll-list" style="max-height:300px" id="soldPlayersList">
                     @foreach (var player in Model.SoldPlayers)
                     {
-                        <div class="player-card-auction sold">
+                        var buyerTeam = Model.Teams.FirstOrDefault(t => t.TeamId == player.SoldToTeamId);
+                        <div class="player-card-auction sold" data-sold-player-id="@player.PlayerId">
                             <div style="display:flex;justify-content:space-between;align-items:center">
                                 <div>
                                     <strong style="font-size:0.9rem">@player.PlayerName</strong><br>
-                                    <small style="color:var(--gray-500)">@player.Position</small>
+                                    <small style="color:var(--gray-500)">
+                                        @player.Position
+                                        @if (buyerTeam != null)
+                                        {
+                                            <span> - @buyerTeam.TeamName</span>
+                                        }
+                                    </small>
                                 </div>
-                                <span class="badge-auction badge-success">@(player.SoldPrice) pts</span>
+                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                    <span class="badge-auction badge-success">@(player.SoldPrice) pts</span>
+                                    <button class="btn-auction btn-danger-auction btn-sm-auction" onclick="revokeSale(@player.PlayerId)" title="Revoke Sale" style="padding:0.25rem 0.5rem;font-size:0.7rem">
+                                        Revoke
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     }

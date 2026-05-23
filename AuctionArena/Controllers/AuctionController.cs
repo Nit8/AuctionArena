@@ -152,6 +152,45 @@ namespace AuctionArena.Controllers
             return RedirectToAction("ManagePlayers", new { lobbyId });
         }
 
+        // ─── Watch Auction (Viewer Entry) ───
+        [HttpGet]
+        public IActionResult WatchAuction()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WatchAuction(WatchAuctionViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            model.LobbyId = model.LobbyId.ToUpperInvariant().Trim();
+            var (success, error) = await _auctionService.ValidateViewerAccessAsync(model.LobbyId);
+            if (!success)
+            {
+                ModelState.AddModelError("", error ?? "Lobby not found");
+                return View(model);
+            }
+
+            return RedirectToAction("ViewerDashboard", new { lobbyId = model.LobbyId });
+        }
+
+        // ─── Viewer Dashboard ───
+        [HttpGet("Auction/ViewerDashboard/{lobbyId}")]
+        public async Task<IActionResult> ViewerDashboard(string lobbyId)
+        {
+            var (success, error) = await _auctionService.ValidateViewerAccessAsync(lobbyId);
+            if (!success)
+                return NotFound(error);
+
+            var viewModel = await _auctionService.GetViewerDashboardDataAsync(lobbyId);
+            return View(viewModel);
+        }
+
         // ─── API Endpoints (AJAX) ───
 
         [HttpPost]
@@ -220,6 +259,85 @@ namespace AuctionArena.Controllers
             return Json(ApiResponse.Ok("Points added successfully"));
         }
 
+        // ─── Enhanced Host Control API Endpoints ───
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RevokeSale(string lobbyId, int playerId)
+        {
+            var (success, error) = await _auctionService.RevokeSaleAsync(lobbyId, playerId);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to revoke sale"));
+
+            return Json(ApiResponse.Ok("Sale revoked successfully"));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetCurrentBid(string lobbyId)
+        {
+            var (success, error) = await _auctionService.ResetCurrentBidAsync(lobbyId);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to reset bids"));
+
+            return Json(ApiResponse.Ok("Bids reset successfully"));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EndAuction(string lobbyId)
+        {
+            var (success, error) = await _auctionService.EndAuctionAsync(lobbyId);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to end auction"));
+
+            return Json(ApiResponse.Ok("Auction ended"));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReactivateAuction(string lobbyId)
+        {
+            var (success, error) = await _auctionService.ReactivateAuctionAsync(lobbyId);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to reactivate auction"));
+
+            return Json(ApiResponse.Ok("Auction reactivated"));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetTeamPoints(int teamId, int points)
+        {
+            var (success, error) = await _auctionService.SetTeamPointsAsync(teamId, points);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to set team points"));
+
+            return Json(ApiResponse.Ok("Team points updated"));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeductTeamPoints(string lobbyId, int teamId, int points)
+        {
+            var (success, error) = await _auctionService.DeductTeamPointsAsync(lobbyId, teamId, points);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to deduct team points"));
+
+            return Json(ApiResponse.Ok("Points deducted"));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetTimerDuration(string lobbyId, int durationSeconds)
+        {
+            var (success, duration, error) = await _auctionService.SetTimerDurationAsync(lobbyId, durationSeconds);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to set timer duration"));
+
+            return Json(ApiResponse.Ok(new { Duration = duration }, $"Timer set to {duration} seconds"));
+        }
+
         // ─── Bid History API ───
         [HttpGet]
         public async Task<IActionResult> BidHistory(string lobbyId, int playerId)
@@ -251,6 +369,37 @@ namespace AuctionArena.Controllers
                     t.RemainingPoints,
                     t.PlayerCount
                 })
+            });
+        }
+
+        // ─── Viewer Dashboard Data API ───
+        [HttpGet]
+        public async Task<IActionResult> ViewerDashboardData(string lobbyId)
+        {
+            var viewModel = await _auctionService.GetViewerDashboardDataAsync(lobbyId);
+            return Json(new
+            {
+                currentPlayer = viewModel.CurrentPlayer != null ? new
+                {
+                    viewModel.CurrentPlayer.PlayerId,
+                    viewModel.CurrentPlayer.PlayerName,
+                    viewModel.CurrentPlayer.Position
+                } : null,
+                currentHighestBid = viewModel.CurrentHighestBid,
+                currentHighestBidder = viewModel.CurrentHighestBidder?.TeamName,
+                isPaused = viewModel.IsPaused,
+                isActive = viewModel.IsActive,
+                timerDuration = viewModel.TimerDuration,
+                teams = viewModel.Teams.Select(t => new
+                {
+                    t.TeamId,
+                    t.TeamName,
+                    t.RemainingPoints,
+                    t.PlayerCount
+                }),
+                availableCount = viewModel.RemainingPlayers.Count,
+                soldCount = viewModel.SoldPlayers.Count,
+                totalSpent = viewModel.TotalSpent
             });
         }
     }

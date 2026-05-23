@@ -365,6 +365,222 @@ namespace AuctionArena.Services
             return (true, null);
         }
 
+        // ─── Enhanced Host Controls ───
+
+        public async Task<(bool Success, string? Error)> ValidateViewerAccessAsync(string lobbyId)
+        {
+            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId.ToUpperInvariant());
+            if (lobby == null)
+                return (false, "Lobby not found");
+
+            return (true, null);
+        }
+
+        public async Task<(bool Success, string? Error)> RevokeSaleAsync(string lobbyId, int playerId)
+        {
+            try
+            {
+                var player = await _playerRepo.GetPlayerAsync(playerId);
+                if (player == null || !player.IsAuctioned || player.SoldToTeamId == null || player.SoldPrice == null)
+                    return (false, "Player has not been sold or not found");
+
+                if (player.LobbyId != lobbyId)
+                    return (false, "Player does not belong to this lobby");
+
+                var teamId = player.SoldToTeamId.Value;
+                var refundAmount = player.SoldPrice.Value;
+                var team = await _teamRepo.GetTeamAsync(teamId);
+                if (team == null)
+                    return (false, "Team not found");
+
+                // Return player to available
+                await _playerRepo.RevokePlayerSaleAsync(playerId);
+
+                // Refund points to team
+                await _teamRepo.AddPointsToTeamAsync(teamId, refundAmount);
+                await _teamRepo.UpdateTeamPlayerCountAsync(teamId, team.PlayerCount - 1);
+
+                // Delete all bids for this player
+                await _bidRepo.DeleteBidsForPlayerAsync(playerId);
+
+                // Reactivate lobby if it was ended
+                var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+                if (lobby != null && !lobby.IsActive)
+                {
+                    await _lobbyRepo.UpdateLobbyActiveStateAsync(lobbyId, true);
+                }
+
+                // Notify all clients
+                await _notificationService.NotifySaleRevoked(lobbyId, playerId, player.PlayerName, teamId, team.TeamName, refundAmount);
+                await _notificationService.NotifyTeamUpdate(lobbyId, teamId, team.TeamName, team.RemainingPoints + refundAmount);
+
+                _logger.LogInformation("Sale revoked: Player {PlayerName} returned from {TeamName}, refund {Refund} in lobby {LobbyId}",
+                    player.PlayerName, team.TeamName, refundAmount, lobbyId);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error revoking sale in lobby {LobbyId}", lobbyId);
+                return (false, "Error revoking sale. Please try again.");
+            }
+        }
+
+        public async Task<(bool Success, string? Error)> ResetCurrentBidAsync(string lobbyId)
+        {
+            try
+            {
+                var auctionState = await _auctionStateRepo.GetAuctionStateAsync(lobbyId);
+                if (auctionState?.CurrentPlayerId == null)
+                    return (false, "No player is currently in auction");
+
+                var player = await _playerRepo.GetPlayerAsync(auctionState.CurrentPlayerId.Value);
+                if (player == null)
+                    return (false, "Player not found");
+
+                // Delete all bids for the current player
+                await _bidRepo.DeleteBidsForPlayerAsync(auctionState.CurrentPlayerId.Value);
+
+                // Reset auction state to fresh start for this player
+                auctionState.CurrentHighestBid = null;
+                auctionState.CurrentHighestBidderTeamId = null;
+                auctionState.AuctionStartTime = DateTime.UtcNow;
+                await _auctionStateRepo.UpdateAuctionStateAsync(auctionState);
+
+                // Notify all clients
+                await _notificationService.NotifyBidReset(lobbyId, player.PlayerId, player.PlayerName, player.Position);
+
+                _logger.LogInformation("Bids reset for player {PlayerName} in lobby {LobbyId}", player.PlayerName, lobbyId);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting bids in lobby {LobbyId}", lobbyId);
+                return (false, "Error resetting bids. Please try again.");
+            }
+        }
+
+        public async Task<(bool Success, string? Error)> EndAuctionAsync(string lobbyId)
+        {
+            try
+            {
+                var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+                if (lobby == null)
+                    return (false, "Lobby not found");
+
+                await _lobbyRepo.UpdateLobbyActiveStateAsync(lobbyId, false);
+
+                // Clear current auction
+                await _auctionStateRepo.ClearCurrentAuctionAsync(lobbyId);
+                await _notificationService.NotifyPlayerUpdate(lobbyId, null, null, null);
+                await _notificationService.NotifyAuctionComplete(lobbyId, "Auction has been ended by the host.");
+
+                _logger.LogInformation("Auction ended manually for lobby {LobbyId}", lobbyId);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error ending auction in lobby {LobbyId}", lobbyId);
+                return (false, "Error ending auction. Please try again.");
+            }
+        }
+
+        public async Task<(bool Success, string? Error)> ReactivateAuctionAsync(string lobbyId)
+        {
+            try
+            {
+                var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+                if (lobby == null)
+                    return (false, "Lobby not found");
+
+                if (lobby.IsActive)
+                    return (false, "Auction is already active");
+
+                await _lobbyRepo.UpdateLobbyActiveStateAsync(lobbyId, true);
+                await _lobbyRepo.UpdateLobbyPauseStateAsync(lobbyId, false);
+                await _notificationService.NotifyAuctionReactivated(lobbyId);
+
+                _logger.LogInformation("Auction reactivated for lobby {LobbyId}", lobbyId);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reactivating auction in lobby {LobbyId}", lobbyId);
+                return (false, "Error reactivating auction. Please try again.");
+            }
+        }
+
+        public async Task<(bool Success, string? Error)> SetTeamPointsAsync(int teamId, int points)
+        {
+            if (points < 0 || points > 1000000)
+                return (false, "Points must be between 0 and 1,000,000");
+
+            try
+            {
+                var team = await _teamRepo.GetTeamAsync(teamId);
+                if (team == null)
+                    return (false, "Team not found");
+
+                await _teamRepo.UpdateTeamPointsAsync(teamId, points);
+                await _notificationService.NotifyTeamUpdate(team.LobbyId, teamId, team.TeamName, points);
+
+                _logger.LogInformation("Team {TeamName} points set to {Points} in lobby {LobbyId}", team.TeamName, points, team.LobbyId);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting team points for team {TeamId}", teamId);
+                return (false, "Error setting team points. Please try again.");
+            }
+        }
+
+        public async Task<(bool Success, string? Error)> DeductTeamPointsAsync(string lobbyId, int teamId, int points)
+        {
+            if (points <= 0 || points > 1000000)
+                return (false, "Points to deduct must be between 1 and 1,000,000");
+
+            try
+            {
+                var team = await _teamRepo.GetTeamAsync(teamId);
+                if (team == null)
+                    return (false, "Team not found");
+
+                if (team.RemainingPoints < points)
+                    return (false, "Team doesn't have enough points to deduct");
+
+                await _teamRepo.DeductTeamPointsAsync(teamId, points);
+                var updatedTeam = await _teamRepo.GetTeamAsync(teamId);
+                await _notificationService.NotifyTeamUpdate(lobbyId, teamId, team.TeamName, updatedTeam?.RemainingPoints);
+
+                _logger.LogInformation("Deducted {Points} from team {TeamName} in lobby {LobbyId}", points, team.TeamName, lobbyId);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deducting team points for team {TeamId}", teamId);
+                return (false, "Error deducting team points. Please try again.");
+            }
+        }
+
+        public async Task<(bool Success, int Duration, string? Error)> SetTimerDurationAsync(string lobbyId, int durationSeconds)
+        {
+            if (durationSeconds < 5 || durationSeconds > 300)
+                return (false, 30, "Timer duration must be between 5 and 300 seconds");
+
+            try
+            {
+                await _auctionStateRepo.SetTimerDurationAsync(lobbyId, durationSeconds);
+                await _notificationService.NotifyTimerUpdate(lobbyId, durationSeconds);
+
+                _logger.LogInformation("Timer duration set to {Duration}s for lobby {LobbyId}", durationSeconds, lobbyId);
+                return (true, durationSeconds, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting timer duration in lobby {LobbyId}", lobbyId);
+                return (false, 30, "Error setting timer duration. Please try again.");
+            }
+        }
+
         // ─── Player Management ───
         public async Task<int> AddPlayerAsync(string lobbyId, string playerName, string position)
         {
@@ -452,7 +668,8 @@ namespace AuctionArena.Services
                 RemainingPlayers = players.Where(p => !p.IsAuctioned).ToList(),
                 SoldPlayers = players.Where(p => p.IsAuctioned).ToList(),
                 CurrentBids = currentBids,
-                IsPaused = lobby?.IsPaused ?? false
+                IsPaused = lobby?.IsPaused ?? false,
+                IsActive = lobby?.IsActive ?? false
             };
         }
 
@@ -505,6 +722,49 @@ namespace AuctionArena.Services
         public async Task<List<Bid>> GetBidHistoryAsync(string lobbyId, int playerId)
         {
             return await _bidRepo.GetBidsForPlayerAsync(playerId);
+        }
+
+        public async Task<ViewerDashboardViewModel> GetViewerDashboardDataAsync(string lobbyId)
+        {
+            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+            var teams = await _teamRepo.GetTeamsByLobbyAsync(lobbyId);
+            var players = await _playerRepo.GetPlayersByLobbyAsync(lobbyId);
+            var auctionState = await _auctionStateRepo.GetAuctionStateAsync(lobbyId);
+
+            Player? currentPlayer = null;
+            Team? currentBidder = null;
+            List<Bid> currentBids = new();
+            List<Bid> recentBids = new();
+
+            if (auctionState?.CurrentPlayerId != null)
+            {
+                currentPlayer = await _playerRepo.GetPlayerAsync(auctionState.CurrentPlayerId.Value);
+                if (auctionState.CurrentHighestBidderTeamId != null)
+                    currentBidder = await _teamRepo.GetTeamAsync(auctionState.CurrentHighestBidderTeamId.Value);
+                currentBids = await _bidRepo.GetBidsForPlayerAsync(auctionState.CurrentPlayerId.Value);
+            }
+
+            recentBids = await _bidRepo.GetRecentBidsForLobbyAsync(lobbyId, 20);
+
+            var soldPlayers = players.Where(p => p.IsAuctioned).ToList();
+            var totalSpent = soldPlayers.Sum(p => p.SoldPrice ?? 0);
+
+            return new ViewerDashboardViewModel
+            {
+                Lobby = lobby ?? new(),
+                Teams = teams,
+                CurrentPlayer = currentPlayer,
+                CurrentHighestBid = auctionState?.CurrentHighestBid,
+                CurrentHighestBidder = currentBidder,
+                RemainingPlayers = players.Where(p => !p.IsAuctioned).ToList(),
+                SoldPlayers = soldPlayers,
+                RecentBids = recentBids,
+                CurrentBids = currentBids,
+                IsPaused = lobby?.IsPaused ?? false,
+                IsActive = lobby?.IsActive ?? false,
+                TimerDuration = auctionState?.TimerDuration ?? 30,
+                TotalSpent = totalSpent
+            };
         }
     }
 }

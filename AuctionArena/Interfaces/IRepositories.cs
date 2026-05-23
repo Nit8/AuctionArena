@@ -32,6 +32,7 @@ namespace AuctionArena.Interfaces
         Task<List<Player>> GetUnsoldPlayersAsync(string lobbyId);
         Task<List<Player>> GetSoldPlayersAsync(string lobbyId);
         Task UpdatePlayerSoldAsync(int playerId, int teamId, int price);
+        Task RevokePlayerSaleAsync(int playerId);
         Task DeletePlayerAsync(int playerId);
         Task UpdatePlayerAsync(Player player);
     }
@@ -41,6 +42,8 @@ namespace AuctionArena.Interfaces
         Task CreateBidAsync(Bid bid);
         Task<List<Bid>> GetBidsForPlayerAsync(int playerId);
         Task<List<Bid>> GetBidsForLobbyAsync(string lobbyId);
+        Task DeleteBidsForPlayerAsync(int playerId);
+        Task<List<Bid>> GetRecentBidsForLobbyAsync(string lobbyId, int count = 20);
     }
 
     public interface IAuctionStateRepository
@@ -48,5 +51,6 @@ namespace AuctionArena.Interfaces
         Task<AuctionState?> GetAuctionStateAsync(string lobbyId);
         Task UpdateAuctionStateAsync(AuctionState state);
         Task ClearCurrentAuctionAsync(string lobbyId);
+        Task SetTimerDurationAsync(string lobbyId, int durationSeconds);
     }
 }

@@ -233,6 +233,15 @@ namespace AuctionArena.Repositories
                 WHERE PlayerId = @PlayerId AND IsAuctioned = 0",
                 player);
         }
+
+        public async Task RevokePlayerSaleAsync(int playerId)
+        {
+            using var connection = GetConnection();
+            await connection.ExecuteAsync(@"
+                UPDATE Players SET SoldToTeamId = NULL, SoldPrice = NULL, IsAuctioned = 0
+                WHERE PlayerId = @PlayerId AND IsAuctioned = 1",
+                new { PlayerId = playerId });
+        }
     }
 
     public class BidRepository : IBidRepository
@@ -271,6 +280,23 @@ namespace AuctionArena.Repositories
             var bids = await connection.QueryAsync<Bid>(
                 "SELECT * FROM Bids WHERE LobbyId = @LobbyId ORDER BY BidTime DESC",
                 new { LobbyId = lobbyId });
+            return bids.ToList();
+        }
+
+        public async Task DeleteBidsForPlayerAsync(int playerId)
+        {
+            using var connection = GetConnection();
+            await connection.ExecuteAsync(
+                "DELETE FROM Bids WHERE PlayerId = @PlayerId",
+                new { PlayerId = playerId });
+        }
+
+        public async Task<List<Bid>> GetRecentBidsForLobbyAsync(string lobbyId, int count = 20)
+        {
+            using var connection = GetConnection();
+            var bids = await connection.QueryAsync<Bid>(
+                "SELECT * FROM Bids WHERE LobbyId = @LobbyId ORDER BY BidTime DESC LIMIT @Count",
+                new { LobbyId = lobbyId, Count = count });
             return bids.ToList();
         }
     }
@@ -357,6 +383,17 @@ namespace AuctionArena.Repositories
                     Version = Version + 1
                 WHERE LobbyId = @LobbyId
             ", new { LobbyId = lobbyId });
+        }
+
+        public async Task SetTimerDurationAsync(string lobbyId, int durationSeconds)
+        {
+            using var connection = GetConnection();
+            await connection.ExecuteAsync(@"
+                UPDATE AuctionState 
+                SET TimerDuration = @DurationSeconds,
+                    Version = Version + 1
+                WHERE LobbyId = @LobbyId
+            ", new { LobbyId = lobbyId, DurationSeconds = durationSeconds });
         }
     }
 }
