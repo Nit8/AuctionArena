@@ -1,0 +1,510 @@
+using AuctionArena.Interfaces;
+using AuctionArena.Models;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace AuctionArena.Services
+{
+    public class AuctionService : IAuctionService
+    {
+        private readonly ILobbyRepository _lobbyRepo;
+        private readonly ITeamRepository _teamRepo;
+        private readonly IPlayerRepository _playerRepo;
+        private readonly IBidRepository _bidRepo;
+        private readonly IAuctionStateRepository _auctionStateRepo;
+        private readonly INotificationService _notificationService;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<AuctionService> _logger;
+        private readonly string _connectionString;
+
+        public AuctionService(
+            ILobbyRepository lobbyRepo,
+            ITeamRepository teamRepo,
+            IPlayerRepository playerRepo,
+            IBidRepository bidRepo,
+            IAuctionStateRepository auctionStateRepo,
+            INotificationService notificationService,
+            IConfiguration configuration,
+            ILogger<AuctionService> logger)
+        {
+            _lobbyRepo = lobbyRepo;
+            _teamRepo = teamRepo;
+            _playerRepo = playerRepo;
+            _bidRepo = bidRepo;
+            _auctionStateRepo = auctionStateRepo;
+            _notificationService = notificationService;
+            _configuration = configuration;
+            _logger = logger;
+            _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "Data Source=auction.db";
+        }
+
+        // ─── Password Hashing ───
+        public static (string Hash, string Salt) HashPassword(string password)
+        {
+            var saltBytes = RandomNumberGenerator.GetBytes(16);
+            var salt = Convert.ToBase64String(saltBytes);
+            var hash = Rfc2898DeriveBytes.Pbkdf2(
+                Encoding.UTF8.GetBytes(password), saltBytes, 100_000, HashAlgorithmName.SHA256, 32);
+            return (Convert.ToBase64String(hash), salt);
+        }
+
+        public static bool VerifyPassword(string password, string hash, string salt)
+        {
+            var saltBytes = Convert.FromBase64String(salt);
+            var computedHash = Rfc2898DeriveBytes.Pbkdf2(
+                Encoding.UTF8.GetBytes(password), saltBytes, 100_000, HashAlgorithmName.SHA256, 32);
+            return Convert.ToBase64String(computedHash) == hash;
+        }
+
+        // ─── Lobby ID Generation (collision-safe) ───
+        private static string GenerateLobbyId()
+        {
+            var bytes = RandomNumberGenerator.GetBytes(9); // 12 chars in Base64Url
+            return Convert.ToBase64String(bytes).Replace("+", "").Replace("/", "").Replace("=", "").ToUpperInvariant();
+        }
+
+        // ─── Lobby Operations ───
+        public async Task<(string LobbyId, string? Error)> CreateLobbyAsync(CreateLobbyViewModel model)
+        {
+            var lobbyId = GenerateLobbyId();
+
+            // Ensure no collision
+            while (await _lobbyRepo.GetLobbyAsync(lobbyId) != null)
+            {
+                lobbyId = GenerateLobbyId();
+            }
+
+            string? passwordHash = null;
+            string? passwordSalt = null;
+            if (!string.IsNullOrEmpty(model.Password))
+            {
+                (passwordHash, passwordSalt) = HashPassword(model.Password);
+            }
+
+            var lobby = new Lobby
+            {
+                LobbyId = lobbyId,
+                HostName = model.HostName,
+                GameName = model.GameName,
+                PasswordHash = passwordHash,
+                PasswordSalt = passwordSalt,
+                Password = null, // Don't store plaintext
+                TotalTeams = model.TotalTeams,
+                PlayersPerTeam = model.PlayersPerTeam,
+                PointsPerTeam = model.PointsPerTeam,
+                MinPlayersPerTeam = model.MinPlayersPerTeam,
+                MaxPlayersPerTeam = model.MaxPlayersPerTeam,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+                IsPaused = false
+            };
+
+            await _lobbyRepo.CreateLobbyAsync(lobby);
+
+            foreach (var teamSetup in model.Teams)
+            {
+                var team = new Team
+                {
+                    LobbyId = lobbyId,
+                    TeamName = teamSetup.TeamName.Trim(),
+                    OwnerName = teamSetup.OwnerName.Trim(),
+                    CaptainName = teamSetup.CaptainName?.Trim(),
+                    RemainingPoints = model.PointsPerTeam,
+                    PlayerCount = 0
+                };
+                await _teamRepo.CreateTeamAsync(team);
+            }
+
+            _logger.LogInformation("Lobby created: {LobbyId} by {HostName} for {GameName}", lobbyId, model.HostName, model.GameName);
+            return (lobbyId, null);
+        }
+
+        public async Task<(Team? Team, string? Error)> ValidateJoinLobbyAsync(JoinLobbyViewModel model)
+        {
+            var lobby = await _lobbyRepo.GetLobbyAsync(model.LobbyId.ToUpperInvariant());
+            if (lobby == null)
+                return (null, "Lobby not found");
+
+            if (!lobby.IsActive)
+                return (null, "This lobby is no longer active");
+
+            // Verify password
+            if (!string.IsNullOrEmpty(lobby.PasswordHash) && !string.IsNullOrEmpty(lobby.PasswordSalt))
+            {
+                if (string.IsNullOrEmpty(model.Password) || !VerifyPassword(model.Password, lobby.PasswordHash, lobby.PasswordSalt))
+                    return (null, "Incorrect password");
+            }
+            else if (!string.IsNullOrEmpty(lobby.Password))
+            {
+                // Legacy plaintext support for migration
+#pragma warning disable CS0618
+                if (lobby.Password != model.Password)
+                    return (null, "Incorrect password");
+#pragma warning restore CS0618
+            }
+
+            var team = await _teamRepo.GetTeamByOwnerNameAsync(model.LobbyId.ToUpperInvariant(), model.OwnerName.Trim());
+            if (team == null)
+                return (null, "You are not registered in this lobby");
+
+            _logger.LogInformation("Team owner joined: {OwnerName} in lobby {LobbyId}", model.OwnerName, model.LobbyId);
+            return (team, null);
+        }
+
+//        public async Task<(string? LobbyId, string? Error)> ValidateHostResumeAsync(ResumeLobbyViewModel model)
+//        {
+//            var lobbyId = model.LobbyId.ToUpperInvariant().Trim();
+//            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+//            if (lobby == null)
+//                return (null, "Lobby not found. Check the lobby code and try again.");
+
+//            // Verify host name matches
+//            if (!string.Equals(lobby.HostName.Trim(), model.HostName.Trim(), StringComparison.OrdinalIgnoreCase))
+//                return (null, "Host name does not match the lobby's host.");
+
+//            // Verify password if lobby has one
+//            if (!string.IsNullOrEmpty(lobby.PasswordHash) && !string.IsNullOrEmpty(lobby.PasswordSalt))
+//            {
+//                if (string.IsNullOrEmpty(model.Password) || !VerifyPassword(model.Password, lobby.PasswordHash, lobby.PasswordSalt))
+//                    return (null, "Incorrect password");
+//            }
+//            else if (!string.IsNullOrEmpty(lobby.Password))
+//            {
+//                // Legacy plaintext support
+//#pragma warning disable CS0618
+//                if (lobby.Password != model.Password)
+//                    return (null, "Incorrect password");
+//#pragma warning restore CS0618
+//            }
+
+//            _logger.LogInformation("Host {HostName} resumed lobby {LobbyId}", model.HostName, lobbyId);
+//            return (lobbyId, null);
+//        }
+
+        // ─── Auction Flow (with transaction support for concurrency) ───
+        public async Task<(bool Success, string? Error)> StartPlayerAuctionAsync(string lobbyId, int playerId)
+        {
+            var player = await _playerRepo.GetPlayerAsync(playerId);
+            if (player == null || player.IsAuctioned)
+                return (false, "Player not available for auction");
+
+            if (player.LobbyId != lobbyId)
+                return (false, "Player does not belong to this lobby");
+
+            // Read existing state to get the correct Version for optimistic concurrency
+            var existingState = await _auctionStateRepo.GetAuctionStateAsync(lobbyId);
+
+            var auctionState = new AuctionState
+            {
+                LobbyId = lobbyId,
+                CurrentPlayerId = playerId,
+                CurrentHighestBid = null,
+                CurrentHighestBidderTeamId = null,
+                AuctionStartTime = DateTime.UtcNow,
+                Version = existingState?.Version ?? 0
+            };
+
+            await _auctionStateRepo.UpdateAuctionStateAsync(auctionState);
+
+            await _notificationService.NotifyPlayerUpdate(lobbyId, player.PlayerId, player.PlayerName, player.Position);
+
+            _logger.LogInformation("Auction started for player {PlayerName} (ID:{PlayerId}) in lobby {LobbyId}", player.PlayerName, playerId, lobbyId);
+            return (true, null);
+        }
+
+        public async Task<(bool Success, string? Error)> PlaceBidAsync(string lobbyId, int playerId, int teamId, int bidAmount)
+        {
+            try
+            {
+                var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+                if (lobby == null || lobby.IsPaused)
+                    return (false, "Auction is paused or lobby not found");
+
+                var team = await _teamRepo.GetTeamAsync(teamId);
+                if (team == null)
+                    return (false, "Team not found");
+
+                var auctionState = await _auctionStateRepo.GetAuctionStateAsync(lobbyId);
+                if (auctionState?.CurrentPlayerId != playerId)
+                    return (false, "This player is not currently in auction");
+
+                if (bidAmount <= 0)
+                    return (false, "Bid amount must be positive");
+
+                if (auctionState.CurrentHighestBid != null && bidAmount <= auctionState.CurrentHighestBid)
+                    return (false, "Bid must be higher than current bid");
+
+                if (bidAmount > team.RemainingPoints)
+                    return (false, "Insufficient points");
+
+                if (team.PlayerCount >= lobby.MaxPlayersPerTeam)
+                    return (false, "Team has reached maximum players");
+
+                if (auctionState.CurrentHighestBidderTeamId == teamId)
+                    return (false, "You already have the highest bid");
+
+                // Create bid
+                var bid = new Bid
+                {
+                    LobbyId = lobbyId,
+                    PlayerId = playerId,
+                    TeamId = teamId,
+                    BidAmount = bidAmount,
+                    BidTime = DateTime.UtcNow
+                };
+                await _bidRepo.CreateBidAsync(bid);
+
+                // Update auction state with optimistic concurrency
+                auctionState.CurrentHighestBid = bidAmount;
+                auctionState.CurrentHighestBidderTeamId = teamId;
+                await _auctionStateRepo.UpdateAuctionStateAsync(auctionState);
+
+                // Notify after successful commit
+                await _notificationService.NotifyBidUpdate(lobbyId, playerId, teamId, team.TeamName, bidAmount);
+
+                _logger.LogInformation("Bid placed: Team {TeamName} bid {Amount} on Player {PlayerId} in lobby {LobbyId}",
+                    team.TeamName, bidAmount, playerId, lobbyId);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error placing bid in lobby {LobbyId}", lobbyId);
+                return (false, "Error placing bid. Please try again.");
+            }
+        }
+
+        public async Task<(bool Success, string? Error)> ConfirmSaleAsync(string lobbyId, int playerId)
+        {
+            try
+            {
+                var auctionState = await _auctionStateRepo.GetAuctionStateAsync(lobbyId);
+                if (auctionState?.CurrentPlayerId != playerId || auctionState.CurrentHighestBidderTeamId == null)
+                    return (false, "No valid bid to confirm");
+
+                var team = await _teamRepo.GetTeamAsync(auctionState.CurrentHighestBidderTeamId.Value);
+                var player = await _playerRepo.GetPlayerAsync(playerId);
+                if (team == null || player == null)
+                    return (false, "Invalid data");
+
+                // Double-check team can afford (in case points changed)
+                if (team.RemainingPoints < auctionState.CurrentHighestBid.Value)
+                    return (false, "Team no longer has sufficient points");
+
+                // Update player as sold
+                await _playerRepo.UpdatePlayerSoldAsync(playerId, team.TeamId, auctionState.CurrentHighestBid.Value);
+
+                // Deduct points and increment player count atomically
+                await _teamRepo.DeductTeamPointsAsync(team.TeamId, auctionState.CurrentHighestBid.Value);
+                await _teamRepo.UpdateTeamPlayerCountAsync(team.TeamId, team.PlayerCount + 1);
+
+                // Clear auction state
+                await _auctionStateRepo.ClearCurrentAuctionAsync(lobbyId);
+
+                // Notify after successful commit
+                await _notificationService.NotifyPlayerSold(lobbyId, playerId, player.PlayerName, team.TeamId, team.TeamName, auctionState.CurrentHighestBid.Value, player.Position);
+                await _notificationService.NotifyTeamUpdate(lobbyId, team.TeamId, team.TeamName, team.RemainingPoints - auctionState.CurrentHighestBid.Value);
+
+                // Notify clients that no player is currently in auction (clears the auction panel)
+                await _notificationService.NotifyPlayerUpdate(lobbyId, null, null, null);
+
+                // Check if all players are sold
+                var remainingPlayers = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
+                if (remainingPlayers.Count == 0)
+                {
+                    var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+                    if (lobby != null) await _lobbyRepo.UpdateLobbyActiveStateAsync(lobbyId, false);
+                    await _notificationService.NotifyAuctionComplete(lobbyId, "All players have been auctioned!");
+                }
+
+                _logger.LogInformation("Sale confirmed: {PlayerName} sold to {TeamName} for {Price} in lobby {LobbyId}",
+                    player.PlayerName, team.TeamName, auctionState.CurrentHighestBid.Value, lobbyId);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error confirming sale in lobby {LobbyId}", lobbyId);
+                return (false, "Error confirming sale. Please try again.");
+            }
+        }
+
+        public async Task<(bool Success, string? Error)> SkipPlayerAsync(string lobbyId)
+        {
+            await _auctionStateRepo.ClearCurrentAuctionAsync(lobbyId);
+            await _notificationService.NotifyPlayerUpdate(lobbyId, null, null, null);
+
+            _logger.LogInformation("Player skipped in lobby {LobbyId}", lobbyId);
+            return (true, null);
+        }
+
+        public async Task<(bool Success, bool IsPaused, string? Error)> TogglePauseAsync(string lobbyId)
+        {
+            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+            if (lobby == null)
+                return (false, false, "Lobby not found");
+
+            var newPausedState = !lobby.IsPaused;
+            await _lobbyRepo.UpdateLobbyPauseStateAsync(lobbyId, newPausedState);
+            await _notificationService.NotifyPauseUpdate(lobbyId, newPausedState);
+
+            _logger.LogInformation("Auction {State} in lobby {LobbyId}", newPausedState ? "paused" : "resumed", lobbyId);
+            return (true, newPausedState, null);
+        }
+
+        public async Task<(bool Success, string? Error)> AddPointsAsync(string lobbyId, int teamId, int additionalPoints)
+        {
+            if (additionalPoints <= 0 || additionalPoints > 100000)
+                return (false, "Points must be between 1 and 100,000");
+
+            await _teamRepo.AddPointsToTeamAsync(teamId, additionalPoints);
+            var team = await _teamRepo.GetTeamAsync(teamId);
+            await _notificationService.NotifyTeamUpdate(lobbyId, teamId, team?.TeamName ?? "", team?.RemainingPoints);
+
+            _logger.LogInformation("Added {Points} points to team {TeamName} in lobby {LobbyId}", additionalPoints, team?.TeamName, lobbyId);
+            return (true, null);
+        }
+
+        // ─── Player Management ───
+        public async Task<int> AddPlayerAsync(string lobbyId, string playerName, string position)
+        {
+            var players = await _playerRepo.GetPlayersByLobbyAsync(lobbyId);
+            var maxOrder = players.Any() ? players.Max(p => p.DisplayOrder) : 0;
+
+            var player = new Player
+            {
+                LobbyId = lobbyId,
+                PlayerName = playerName.Trim(),
+                Position = position.Trim(),
+                IsAuctioned = false,
+                DisplayOrder = maxOrder + 1
+            };
+
+            var id = await _playerRepo.CreatePlayerAsync(player);
+            _logger.LogInformation("Player {PlayerName} added to lobby {LobbyId}", playerName, lobbyId);
+            return id;
+        }
+
+        public async Task<int> ImportPlayersAsync(string lobbyId, string playersData)
+        {
+            if (string.IsNullOrWhiteSpace(playersData)) return 0;
+
+            var lines = playersData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var players = await _playerRepo.GetPlayersByLobbyAsync(lobbyId);
+            var maxOrder = players.Any() ? players.Max(p => p.DisplayOrder) : 0;
+            var count = 0;
+
+            foreach (var line in lines)
+            {
+                var parts = line.Split(',', 2, StringSplitOptions.TrimEntries);
+                if (parts.Length >= 2 && !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]))
+                {
+                    var player = new Player
+                    {
+                        LobbyId = lobbyId,
+                        PlayerName = parts[0].Trim(),
+                        Position = parts[1].Trim(),
+                        IsAuctioned = false,
+                        DisplayOrder = ++maxOrder
+                    };
+                    await _playerRepo.CreatePlayerAsync(player);
+                    count++;
+                }
+            }
+
+            _logger.LogInformation("Imported {Count} players to lobby {LobbyId}", count, lobbyId);
+            return count;
+        }
+
+        public async Task DeletePlayerAsync(int playerId)
+        {
+            await _playerRepo.DeletePlayerAsync(playerId);
+            _logger.LogInformation("Player {PlayerId} deleted", playerId);
+        }
+
+        // ─── Dashboard Data ───
+        public async Task<AuctionViewModel> GetHostDashboardDataAsync(string lobbyId)
+        {
+            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+            var teams = await _teamRepo.GetTeamsByLobbyAsync(lobbyId);
+            var players = await _playerRepo.GetPlayersByLobbyAsync(lobbyId);
+            var auctionState = await _auctionStateRepo.GetAuctionStateAsync(lobbyId);
+
+            Player? currentPlayer = null;
+            Team? currentBidder = null;
+            List<Bid> currentBids = new();
+
+            if (auctionState?.CurrentPlayerId != null)
+            {
+                currentPlayer = await _playerRepo.GetPlayerAsync(auctionState.CurrentPlayerId.Value);
+                if (auctionState.CurrentHighestBidderTeamId != null)
+                    currentBidder = await _teamRepo.GetTeamAsync(auctionState.CurrentHighestBidderTeamId.Value);
+                currentBids = await _bidRepo.GetBidsForPlayerAsync(auctionState.CurrentPlayerId.Value);
+            }
+
+            return new AuctionViewModel
+            {
+                Lobby = lobby ?? new(),
+                Teams = teams,
+                CurrentPlayer = currentPlayer,
+                CurrentHighestBid = auctionState?.CurrentHighestBid,
+                CurrentHighestBidder = currentBidder,
+                RemainingPlayers = players.Where(p => !p.IsAuctioned).ToList(),
+                SoldPlayers = players.Where(p => p.IsAuctioned).ToList(),
+                CurrentBids = currentBids,
+                IsPaused = lobby?.IsPaused ?? false
+            };
+        }
+
+        public async Task<TeamDashboardViewModel> GetTeamDashboardDataAsync(string lobbyId, int teamId)
+        {
+            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+            var team = await _teamRepo.GetTeamAsync(teamId);
+            var allTeams = await _teamRepo.GetTeamsByLobbyAsync(lobbyId);
+            var myPlayers = await _playerRepo.GetPlayersByTeamAsync(teamId);
+            var auctionState = await _auctionStateRepo.GetAuctionStateAsync(lobbyId);
+
+            Player? currentPlayer = null;
+            string? currentBidderName = null;
+            List<Bid> recentBids = new();
+
+            if (auctionState?.CurrentPlayerId != null)
+            {
+                currentPlayer = await _playerRepo.GetPlayerAsync(auctionState.CurrentPlayerId.Value);
+                if (auctionState.CurrentHighestBidderTeamId != null)
+                {
+                    var bidderTeam = await _teamRepo.GetTeamAsync(auctionState.CurrentHighestBidderTeamId.Value);
+                    currentBidderName = bidderTeam?.TeamName;
+                }
+                recentBids = await _bidRepo.GetBidsForPlayerAsync(auctionState.CurrentPlayerId.Value);
+            }
+
+            var canBid = currentPlayer != null
+                && !lobby?.IsPaused == true
+                && team?.RemainingPoints > (auctionState?.CurrentHighestBid ?? 0)
+                && team?.PlayerCount < (lobby?.MaxPlayersPerTeam ?? 0)
+                && auctionState?.CurrentHighestBidderTeamId != teamId;
+
+            return new TeamDashboardViewModel
+            {
+                Team = team ?? new(),
+                AllTeams = allTeams,
+                MyPlayers = myPlayers,
+                CurrentPlayer = currentPlayer,
+                CurrentHighestBid = auctionState?.CurrentHighestBid,
+                CurrentHighestBidderName = currentBidderName,
+                RemainingPoints = team?.RemainingPoints ?? 0,
+                CanBid = canBid,
+                IsPaused = lobby?.IsPaused ?? false,
+                MaxPlayersPerTeam = lobby?.MaxPlayersPerTeam ?? 0,
+                CurrentPlayerCount = team?.PlayerCount ?? 0,
+                RecentBids = recentBids
+            };
+        }
+
+        public async Task<List<Bid>> GetBidHistoryAsync(string lobbyId, int playerId)
+        {
+            return await _bidRepo.GetBidsForPlayerAsync(playerId);
+        }
+    }
+}

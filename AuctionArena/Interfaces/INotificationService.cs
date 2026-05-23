@@ -1,0 +1,14 @@
+using AuctionArena.Models;
+
+namespace AuctionArena.Interfaces
+{
+    public interface INotificationService
+    {
+        Task NotifyBidUpdate(string lobbyId, int playerId, int teamId, string teamName, int bidAmount);
+        Task NotifyPlayerUpdate(string lobbyId, int? playerId, string? playerName, string? position);
+        Task NotifyPlayerSold(string lobbyId, int playerId, string playerName, int teamId, string teamName, int soldPrice, string? position = null);
+        Task NotifyPauseUpdate(string lobbyId, bool isPaused);
+        Task NotifyTeamUpdate(string lobbyId, int teamId, string teamName, int? remainingPoints);
+        Task NotifyAuctionComplete(string lobbyId, string message);
+    }
+}
