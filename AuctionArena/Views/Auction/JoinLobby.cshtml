@@ -6,55 +6,51 @@
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0">👥 Join Auction Lobby</h3>
+            <div class="card-auction">
+                <div class="card-header-auction card-header-success">
+                    <h4 style="margin:0;font-weight:700">Join Auction Lobby</h4>
                 </div>
-                <div class="card-body p-4">
-                    @if (ViewData.ModelState.ErrorCount > 0)
-                    {
-                        <div class="alert alert-danger">
-                            @Html.ValidationSummary(false, "", new { @class = "mb-0" })
-                        </div>
-                    }
+                <div class="card-body-auction p-4">
+                    <div asp-validation-summary="All" class="global-error" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none")"></div>
 
                     <form method="post">
+                        @Html.AntiForgeryToken()
                         <div class="mb-3">
-                            <label class="form-label">Lobby Code</label>
-                            <input type="text" class="form-control form-control-lg text-center" 
-                                   name="LobbyId" placeholder="Enter 8-character code" 
-                                   style="letter-spacing: 3px; text-transform: uppercase;" 
-                                   maxlength="8" required>
-                            <small class="form-text text-muted">Ask the host for the lobby code</small>
+                            <label class="form-label fw-semibold">Lobby Code</label>
+                            <input type="text" class="form-control-auction form-control-lg-auction" asp-for="LobbyId"
+                                   placeholder="Enter lobby code" style="letter-spacing:3px;text-transform:uppercase" maxlength="12" required>
+                            <small class="text-muted">Ask the host for the lobby code</small>
+                            <span asp-validation-for="LobbyId" class="field-error"></span>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Your Name (Owner Name)</label>
-                            <input type="text" class="form-control" name="OwnerName" 
+                            <label class="form-label fw-semibold">Your Name (Owner Name)</label>
+                            <input type="text" class="form-control-auction" asp-for="OwnerName"
                                    placeholder="Enter your registered owner name" required>
-                            <small class="form-text text-muted">Use the exact name the host registered for you</small>
+                            <small class="text-muted">Use the exact name the host registered for you</small>
+                            <span asp-validation-for="OwnerName" class="field-error"></span>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Password (if required)</label>
-                            <input type="password" class="form-control" name="Password" 
-                                   placeholder="Enter lobby password">
+                            <label class="form-label fw-semibold">Password (if required)</label>
+                            <input type="password" class="form-control-auction" asp-for="Password" placeholder="Enter lobby password">
+                            <span asp-validation-for="Password" class="field-error"></span>
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">Join Lobby</button>
-                            <a href="/" class="btn btn-outline-secondary">Back</a>
+                            <button type="submit" class="btn-auction btn-success-auction btn-lg-auction">Join Lobby</button>
+                            <a href="/" class="btn-auction btn-outline-auction">Back</a>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="card mt-4 bg-white bg-opacity-90">
-                <div class="card-body">
-                    <h6 class="card-title">💡 Tips</h6>
-                    <ul class="mb-0 small">
-                        <li>Make sure you're connected to the same network as the host</li>
-                        <li>Use the exact owner name that was set up by the host</li>
+            <div class="card-auction mt-4">
+                <div class="card-body-auction">
+                    <h6 style="font-weight:700;margin-bottom:0.75rem">Tips</h6>
+                    <ul class="mb-0" style="font-size:0.875rem;color:var(--gray-500)">
+                        <li class="mb-1">Make sure you're connected to the same network as the host</li>
+                        <li class="mb-1">Use the exact owner name that was set up by the host</li>
                         <li>The lobby code is case-insensitive</li>
                     </ul>
                 </div>

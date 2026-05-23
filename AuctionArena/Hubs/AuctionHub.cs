@@ -1,47 +1,46 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 
 namespace AuctionArena.Hubs
 {
     public class AuctionHub : Hub
     {
+        private readonly ILogger<AuctionHub> _logger;
+
+        public AuctionHub(ILogger<AuctionHub> logger)
+        {
+            _logger = logger;
+        }
+
         public async Task JoinLobby(string lobbyId)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, lobbyId);
+            _logger.LogDebug("Connection {ConnectionId} joined lobby {LobbyId}", Context.ConnectionId, lobbyId);
         }
 
         public async Task LeaveLobby(string lobbyId)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyId);
+            _logger.LogDebug("Connection {ConnectionId} left lobby {LobbyId}", Context.ConnectionId, lobbyId);
         }
 
-        public async Task SendBidUpdate(string lobbyId, object bidData)
+        public override async Task OnConnectedAsync()
         {
-            await Clients.Group(lobbyId).SendAsync("ReceiveBidUpdate", bidData);
+            _logger.LogDebug("Client connected: {ConnectionId}", Context.ConnectionId);
+            await base.OnConnectedAsync();
         }
 
-        public async Task SendPlayerUpdate(string lobbyId, object playerData)
+        public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            await Clients.Group(lobbyId).SendAsync("ReceivePlayerUpdate", playerData);
+            _logger.LogDebug("Client disconnected: {ConnectionId}", Context.ConnectionId);
+            await base.OnDisconnectedAsync(exception);
         }
 
-        public async Task SendAuctionStateUpdate(string lobbyId, object stateData)
+        // Get current auction state for a lobby (used on reconnect)
+        public async Task<object?> GetAuctionState(string lobbyId)
         {
-            await Clients.Group(lobbyId).SendAsync("ReceiveAuctionStateUpdate", stateData);
-        }
-
-        public async Task SendTeamUpdate(string lobbyId, object teamData)
-        {
-            await Clients.Group(lobbyId).SendAsync("ReceiveTeamUpdate", teamData);
-        }
-
-        public async Task SendPauseUpdate(string lobbyId, bool isPaused)
-        {
-            await Clients.Group(lobbyId).SendAsync("ReceivePauseUpdate", isPaused);
-        }
-
-        public async Task SendPlayerSold(string lobbyId, object soldData)
-        {
-            await Clients.Group(lobbyId).SendAsync("ReceivePlayerSold", soldData);
+            // This is handled by the HTTP API, but we provide a SignalR method for convenience
+            await Task.CompletedTask;
+            return null;
         }
     }
 }

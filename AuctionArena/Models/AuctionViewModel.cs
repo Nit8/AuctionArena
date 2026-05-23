@@ -1,4 +1,4 @@
-﻿namespace AuctionArena.Models
+namespace AuctionArena.Models
 {
     public class AuctionViewModel
     {
@@ -9,6 +9,7 @@
         public Team? CurrentHighestBidder { get; set; }
         public List<Player> RemainingPlayers { get; set; } = new();
         public List<Player> SoldPlayers { get; set; } = new();
+        public List<Bid> CurrentBids { get; set; } = new();
         public bool IsPaused { get; set; }
     }
 }

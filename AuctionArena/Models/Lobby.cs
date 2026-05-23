@@ -1,11 +1,16 @@
-﻿namespace AuctionArena.Models
+using System.ComponentModel.DataAnnotations;
+
+namespace AuctionArena.Models
 {
     public class Lobby
     {
         public string LobbyId { get; set; } = string.Empty;
         public string HostName { get; set; } = string.Empty;
         public string GameName { get; set; } = string.Empty;
-        public string? Password { get; set; }
+        public string? PasswordHash { get; set; }
+        public string? PasswordSalt { get; set; }
+        [Obsolete("Use PasswordHash instead")]
+        public string? Password { get; set; } // Keep for migration compatibility
         public int TotalTeams { get; set; }
         public int PlayersPerTeam { get; set; }
         public int PointsPerTeam { get; set; }

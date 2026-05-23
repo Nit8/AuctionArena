@@ -4,271 +4,168 @@
 }
 
 <div class="container">
+    @Html.AntiForgeryToken()
+
+    <!-- Header -->
     <div class="row mb-3">
         <div class="col-12">
-            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <div class="card-body text-white">
-                    <h2 class="mb-0">🏆 @Model.Team.TeamName</h2>
-                    <p class="mb-0">Owner: @Model.Team.OwnerName</p>
-                </div>
+            <div class="card-auction-dark p-3">
+                <h2 style="margin:0;font-weight:800;font-size:1.5rem">@Model.Team.TeamName</h2>
+                <p style="margin:0;opacity:0.7">Owner: @Model.Team.OwnerName</p>
             </div>
         </div>
     </div>
 
-    <div class="row mb-3">
+    <!-- Stats Row -->
+    <div class="row g-3 mb-3">
         <div class="col-md-4">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h6 class="text-muted">Available Points</h6>
-                    <h2 class="mb-0" id="pointsDisplay">@Model.RemainingPoints</h2>
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-label">Available Points</div>
+                    <div class="stat-value" id="pointsDisplay">@Model.RemainingPoints</div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h6 class="text-muted">Players</h6>
-                    <h2 class="mb-0">@Model.MyPlayers.Count</h2>
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-label">Players</div>
+                    <div class="stat-value">@Model.CurrentPlayerCount / @Model.MaxPlayersPerTeam</div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h6 class="text-muted">Status</h6>
-                    <h5 class="mb-0">
-                        <span class="badge @(Model.IsPaused ? "bg-warning" : "bg-success")" id="statusBadge">
-                            @(Model.IsPaused ? "⏸️ Paused" : "✅ Active")
-                        </span>
-                    </h5>
+            <div class="card-auction">
+                <div class="stat-card">
+                    <div class="stat-label">Status</div>
+                    <div class="status-badge @(Model.IsPaused ? "status-paused" : "status-active")" id="statusBadge">
+                        @(Model.IsPaused ? "Paused" : "Active")
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Current Player Auction -->
-    <div class="card mb-3" id="currentPlayerCard">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Current Player</h4>
+    <div class="card-auction mb-3">
+        <div class="card-header-auction card-header-primary">
+            <span style="font-weight:700">Current Player</span>
+            <div id="countdownTimer" class="countdown-timer"></div>
         </div>
-        <div class="card-body">
+        <div class="card-body-auction" id="currentPlayerPanel">
             @if (Model.CurrentPlayer != null)
             {
-                <div class="text-center" id="playerAuction">
-                    <h2 class="mb-2">@Model.CurrentPlayer.PlayerName</h2>
-                    <h5 class="text-muted mb-3">@Model.CurrentPlayer.Position</h5>
-                    
-                    <div class="alert alert-info mb-3" id="currentBidDisplay">
+                <div class="text-center p-4">
+                    <h2 style="font-weight:800;margin-bottom:0.5rem">@Model.CurrentPlayer.PlayerName</h2>
+                    <h5 style="color:var(--gray-500);margin-bottom:1.5rem">@Model.CurrentPlayer.Position</h5>
+                    <div class="bid-display" id="currentBidDisplay">
                         @if (Model.CurrentHighestBid.HasValue)
                         {
-                            <h3 class="mb-0">Current Bid: <strong>@Model.CurrentHighestBid</strong></h3>
-                            <p class="mb-0">by @Model.CurrentHighestBidderName</p>
+                            <div class="bid-amount">@Model.CurrentHighestBid</div>
+                            <div class="bid-team">by @Model.CurrentHighestBidderName</div>
                         }
                         else
                         {
-                            <h4 class="mb-0">No bids yet - Place the first bid!</h4>
+                            <h4 style="color:var(--gray-400);font-weight:600">No bids yet - Place the first bid!</h4>
                         }
                     </div>
-
-                    <div class="row justify-content-center">
-                        <div class="col-md-8">
-                            <div class="input-group input-group-lg mb-3">
-                                <input type="number" class="form-control" id="bidAmount" 
-                                       placeholder="Enter bid amount" 
-                                       min="@(Model.CurrentHighestBid.HasValue ? Model.CurrentHighestBid.Value + 1 : 1)"
-                                       max="@Model.RemainingPoints">
-                                <button class="btn btn-success" onclick="placeBid()" 
-                                        id="bidButton" @(Model.CanBid && !Model.IsPaused ? "" : "disabled")>
-                                    Place Bid
-                                </button>
-                            </div>
-                            @if (!Model.CanBid)
-                            {
-                                <small class="text-danger">Insufficient points to bid</small>
-                            }
+                    <div style="max-width:500px;margin:1.5rem auto 0">
+                        <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+                            <input type="number" class="form-control-auction form-control-lg-auction" id="bidAmount"
+                                   placeholder="Enter bid amount"
+                                   min="@(Model.CurrentHighestBid.HasValue ? Model.CurrentHighestBid.Value + 1 : 1)"
+                                   max="@Model.RemainingPoints" style="flex:1">
+                            <button class="btn-auction btn-success-auction btn-lg-auction" onclick="placeBid()" id="bidButton"
+                                @(!Model.CanBid || Model.IsPaused ? "disabled" : "")>
+                                Bid
+                            </button>
+                        </div>
+                        <div class="quick-bid-group">
+                            <button class="quick-bid-btn" onclick="quickBid(50)">+50</button>
+                            <button class="quick-bid-btn" onclick="quickBid(100)">+100</button>
+                            <button class="quick-bid-btn" onclick="quickBid(200)">+200</button>
+                            <button class="quick-bid-btn" onclick="quickBid(500)">+500</button>
                         </div>
                     </div>
-
-                    <div class="btn-group" role="group">
-                        <button class="btn btn-outline-primary" onclick="quickBid(50)">+50</button>
-                        <button class="btn btn-outline-primary" onclick="quickBid(100)">+100</button>
-                        <button class="btn btn-outline-primary" onclick="quickBid(200)">+200</button>
-                        <button class="btn btn-outline-primary" onclick="quickBid(500)">+500</button>
-                    </div>
+                    @if (!Model.CanBid && !Model.IsPaused)
+                    {
+                        <div class="field-error mt-2">Insufficient points to bid or team is at max capacity</div>
+                    }
+                    <div id="bidError" class="mt-2" style="display:none"></div>
                 </div>
             }
             else
             {
-                <div class="text-center text-muted p-4">
-                    <h4>Waiting for next player...</h4>
-                    <p>The host will start the auction shortly</p>
+                <div class="text-center p-5">
+                    <svg style="width:4rem;height:4rem;color:var(--gray-400);margin-bottom:1rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h4 style="color:var(--gray-400)">Waiting for next player...</h4>
+                    <p style="color:var(--gray-400)">The host will start the auction shortly</p>
                 </div>
             }
         </div>
     </div>
 
-    <!-- My Team -->
-    <div class="card">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0">My Team (@Model.MyPlayers.Count players)</h5>
+    <!-- Bid History -->
+    <div class="card-auction mb-3">
+        <div class="card-header-auction">
+            <span style="font-weight:700">Recent Bids</span>
         </div>
-        <div class="card-body">
-            @if (Model.MyPlayers.Any())
-            {
-                <div class="row">
+        <div class="card-body-auction p-2">
+            <div id="bidHistoryList" class="scroll-list" style="max-height:150px">
+                @foreach (var bid in Model.RecentBids.OrderByDescending(b => b.BidAmount).Take(10))
+                {
+                    <div class="bid-history-item @((Model.CurrentHighestBidderName == Model.AllTeams.FirstOrDefault(t => t.TeamId == bid.TeamId)?.TeamName) ? "highest" : "")">
+                        <span style="font-weight:600">@Model.AllTeams.FirstOrDefault(t => t.TeamId == bid.TeamId)?.TeamName</span>
+                        <span class="badge-auction badge-primary">@bid.BidAmount pts</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- My Team -->
+    <div class="card-auction">
+        <div class="card-header-auction card-header-success">
+            <span style="font-weight:700">My Team (@Model.MyPlayers.Count players)</span>
+        </div>
+        <div class="card-body-auction">
+            <div class="row g-2" id="myTeamList">
+                @if (Model.MyPlayers.Any())
+                {
                     @foreach (var player in Model.MyPlayers)
                     {
-                        <div class="col-md-6 mb-2">
-                            <div class="card player-card">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <strong>@player.PlayerName</strong>
-                                            <br><small class="text-muted">@player.Position</small>
-                                        </div>
-                                        <div>
-                                            <span class="badge bg-primary">@player.SoldPrice pts</span>
-                                        </div>
+                        <div class="col-md-6">
+                            <div class="player-card-auction">
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <div>
+                                        <strong>@player.PlayerName</strong><br>
+                                        <small style="color:var(--gray-500)">@player.Position</small>
                                     </div>
+                                    <span class="badge-auction badge-success">@(player.SoldPrice) pts</span>
                                 </div>
                             </div>
                         </div>
                     }
-                </div>
-            }
-            else
-            {
-                <div class="alert alert-info">
-                    You haven't won any players yet. Start bidding!
-                </div>
-            }
+                }
+                else
+                {
+                    <div id="noPlayersMsg" class="col-12" style="text-align:center;padding:2rem;color:var(--gray-400)">
+                        <p style="margin:0">You haven't won any players yet. Start bidding!</p>
+                    </div>
+                }
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
-<script>
-    const lobbyId = '@Model.Team.LobbyId';
-    const teamId = @Model.Team.TeamId;
-    let currentPlayerId = @(Model.CurrentPlayer?.PlayerId ?? 0);
-    
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/auctionHub")
-        .build();
-
-    connection.start().then(() => {
-        connection.invoke("JoinLobby", lobbyId);
-        console.log("Connected to auction hub");
-    }).catch(err => console.error(err));
-
-    connection.on("ReceiveBidUpdate", (data) => {
-        const display = document.getElementById('currentBidDisplay');
-        display.innerHTML = `
-            <h3 class="mb-0">Current Bid: <strong>${data.bidAmount}</strong></h3>
-            <p class="mb-0">by ${data.teamName}</p>
-        `;
-        display.classList.add('bid-animation');
-        setTimeout(() => display.classList.remove('bid-animation'), 500);
-        
-        // Update bid input minimum
-        document.getElementById('bidAmount').min = data.bidAmount + 1;
-    });
-
-    connection.on("ReceivePlayerUpdate", (data) => {
-        if (data.playerId) {
-            currentPlayerId = data.playerId;
-            const card = document.getElementById('currentPlayerCard');
-            card.querySelector('.card-body').innerHTML = `
-                <div class="text-center" id="playerAuction">
-                    <h2 class="mb-2">${data.playerName}</h2>
-                    <h5 class="text-muted mb-3">${data.position}</h5>
-                    <div class="alert alert-info mb-3" id="currentBidDisplay">
-                        <h4 class="mb-0">No bids yet - Place the first bid!</h4>
-                    </div>
-                    <div class="row justify-content-center">
-                        <div class="col-md-8">
-                            <div class="input-group input-group-lg mb-3">
-                                <input type="number" class="form-control" id="bidAmount" 
-                                       placeholder="Enter bid amount" min="1">
-                                <button class="btn btn-success" onclick="placeBid()" id="bidButton">
-                                    Place Bid
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="btn-group" role="group">
-                        <button class="btn btn-outline-primary" onclick="quickBid(50)">+50</button>
-                        <button class="btn btn-outline-primary" onclick="quickBid(100)">+100</button>
-                        <button class="btn btn-outline-primary" onclick="quickBid(200)">+200</button>
-                        <button class="btn btn-outline-primary" onclick="quickBid(500)">+500</button>
-                    </div>
-                </div>
-            `;
-        } else {
-            document.getElementById('currentPlayerCard').querySelector('.card-body').innerHTML = `
-                <div class="text-center text-muted p-4">
-                    <h4>Waiting for next player...</h4>
-                    <p>The host will start the auction shortly</p>
-                </div>
-            `;
-        }
-    });
-
-    connection.on("ReceivePlayerSold", (data) => {
-        alert(`${data.playerName} sold to ${data.teamName} for ${data.soldPrice} points!`);
-        setTimeout(() => location.reload(), 1000);
-    });
-
-    connection.on("ReceivePauseUpdate", (isPaused) => {
-        const badge = document.getElementById('statusBadge');
-        badge.className = isPaused ? 'badge bg-warning' : 'badge bg-success';
-        badge.textContent = isPaused ? '⏸️ Paused' : '✅ Active';
-        
-        const bidBtn = document.getElementById('bidButton');
-        if (bidBtn) {
-            bidBtn.disabled = isPaused;
-        }
-    });
-
-    connection.on("ReceiveTeamUpdate", (data) => {
-        if (data.teamId === teamId) {
-            document.getElementById('pointsDisplay').textContent = data.remainingPoints;
-        }
-    });
-
-    function placeBid() {
-        const amount = parseInt(document.getElementById('bidAmount').value);
-        if (!amount || amount <= 0) {
-            alert('Please enter a valid bid amount');
-            return;
-        }
-
-        fetch('/Auction/PlaceBid', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `lobbyId=${lobbyId}&playerId=${currentPlayerId}&teamId=${teamId}&bidAmount=${amount}`
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text) });
-            }
-            document.getElementById('bidAmount').value = '';
-        })
-        .catch(err => alert('Error: ' + err.message));
-    }
-
-    function quickBid(increment) {
-        const input = document.getElementById('bidAmount');
-        const currentMin = parseInt(input.min) || 0;
-        input.value = currentMin + increment;
-    }
-</script>
-}
-
-@section Styles {
-<style>
-    body {
-        background: #f8f9fa;
-    }
-</style>
+    <script src="~/js/teamDashboard.js"></script>
+    <script>
+        const lobbyId = '@Model.Team.LobbyId';
+        const teamId = @Model.Team.TeamId;
+        const initialPlayerId = @(Model.CurrentPlayer?.PlayerId ?? 0);
+        initTeamDashboard(lobbyId, teamId, initialPlayerId);
+    </script>
 }

@@ -1,4 +1,4 @@
-﻿namespace AuctionArena.Models
+namespace AuctionArena.Models
 {
     public class AuctionState
     {
@@ -7,5 +7,6 @@
         public int? CurrentHighestBid { get; set; }
         public int? CurrentHighestBidderTeamId { get; set; }
         public DateTime? AuctionStartTime { get; set; }
+        public int Version { get; set; } // Optimistic concurrency token
     }
 }

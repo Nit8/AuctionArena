@@ -5,27 +5,27 @@ A real-time player auction web application for sports teams built with ASP.NET C
 ## ?? Features
 
 ### For Hosts
-- ? Create auction lobbies with custom settings
-- ? Password-protected lobbies
-- ? Add/import players (manual and CSV format)
-- ? Control auction flow (start, pause, resume, skip)
-- ? Real-time monitoring of all bids
-- ? Add extra points to teams during auction
-- ? Manage team rosters and player limits
+- Create auction lobbies with custom settings
+- Password-protected lobbies
+- Add/import players (manual and CSV format)
+- Control auction flow (start, pause, resume, skip)
+- Real-time monitoring of all bids
+- Add extra points to teams during auction
+- Manage team rosters and player limits
 
 ### For Team Owners
-- ? Join lobbies with lobby code
-- ? Real-time bidding interface
-- ? Quick bid buttons for faster bidding
-- ? View team roster and remaining points
-- ? Lightweight, mobile-friendly interface
-- ? Live updates when other owners bid
+- Join lobbies with lobby code
+- Real-time bidding interface
+- Quick bid buttons for faster bidding
+- View team roster and remaining points
+- Lightweight, mobile-friendly interface
+- Live updates when other owners bid
 
 ### Real-Time Features
-- ? Instant bid updates across all devices
-- ? Live player sold notifications
-- ? Pause/resume synchronization
-- ? Team points and roster updates
+- Instant bid updates across all devices
+- Live player sold notifications
+- Pause/resume synchronization
+- Team points and roster updates
 
 ## ?? Quick Start
 
