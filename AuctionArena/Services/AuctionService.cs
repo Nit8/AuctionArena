@@ -318,6 +318,10 @@ namespace AuctionArena.Services
                     await _notificationService.NotifyAuctionComplete(lobbyId, "All players have been auctioned!");
                 }
 
+                // Notify viewers of updated available players
+                var updatedRemaining = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
+                await _notificationService.NotifyAvailablePlayersUpdate(lobbyId, updatedRemaining);
+
                 _logger.LogInformation("Sale confirmed: {PlayerName} sold to {TeamName} for {Price} in lobby {LobbyId}",
                     player.PlayerName, team.TeamName, auctionState.CurrentHighestBid.Value, lobbyId);
                 return (true, null);
@@ -413,6 +417,10 @@ namespace AuctionArena.Services
                 // Notify all clients
                 await _notificationService.NotifySaleRevoked(lobbyId, playerId, player.PlayerName, teamId, team.TeamName, refundAmount);
                 await _notificationService.NotifyTeamUpdate(lobbyId, teamId, team.TeamName, team.RemainingPoints + refundAmount);
+
+                // Notify viewers of updated available players
+                var updatedRemaining = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
+                await _notificationService.NotifyAvailablePlayersUpdate(lobbyId, updatedRemaining);
 
                 _logger.LogInformation("Sale revoked: Player {PlayerName} returned from {TeamName}, refund {Refund} in lobby {LobbyId}",
                     player.PlayerName, team.TeamName, refundAmount, lobbyId);
@@ -598,6 +606,11 @@ namespace AuctionArena.Services
 
             var id = await _playerRepo.CreatePlayerAsync(player);
             _logger.LogInformation("Player {PlayerName} added to lobby {LobbyId}", playerName, lobbyId);
+            
+            // Notify viewers of updated available players
+            var updatedRemaining = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
+            await _notificationService.NotifyAvailablePlayersUpdate(lobbyId, updatedRemaining);
+            
             return id;
         }
 
@@ -629,13 +642,49 @@ namespace AuctionArena.Services
             }
 
             _logger.LogInformation("Imported {Count} players to lobby {LobbyId}", count, lobbyId);
+
+            // Notify viewers of updated available players after import
+            if (count > 0)
+            {
+                var updatedRemaining = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
+                await _notificationService.NotifyAvailablePlayersUpdate(lobbyId, updatedRemaining);
+            }
+
             return count;
         }
 
         public async Task DeletePlayerAsync(int playerId)
         {
-            await _playerRepo.DeletePlayerAsync(playerId);
-            _logger.LogInformation("Player {PlayerId} deleted", playerId);
+            try
+            {
+                var player = await _playerRepo.GetPlayerAsync(playerId);
+                if (player == null)
+                {
+                    _logger.LogWarning("Player {PlayerId} not found", playerId);
+                    return;
+                }
+
+                if (player.IsAuctioned)
+                {
+                    _logger.LogWarning("Cannot delete player {PlayerId} - already auctioned", playerId);
+                    return;
+                }
+
+                var lobbyId = player.LobbyId;
+                
+                await _playerRepo.DeletePlayerAsync(playerId);
+                _logger.LogInformation("Player {PlayerId} deleted from lobby {LobbyId}", playerId, lobbyId);
+
+                // Notify viewers of updated available players
+                var updatedRemaining = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
+                _logger.LogInformation("🟢 About to notify availability update for lobby {LobbyId} with {Count} players", lobbyId, updatedRemaining.Count);
+                await _notificationService.NotifyAvailablePlayersUpdate(lobbyId, updatedRemaining);
+                _logger.LogInformation("🟢 Notification sent for lobby {LobbyId}", lobbyId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting player {PlayerId}", playerId);
+            }
         }
 
         // ─── Dashboard Data ───
@@ -665,7 +714,7 @@ namespace AuctionArena.Services
                 CurrentPlayer = currentPlayer,
                 CurrentHighestBid = auctionState?.CurrentHighestBid,
                 CurrentHighestBidder = currentBidder,
-                RemainingPlayers = players.Where(p => !p.IsAuctioned).ToList(),
+                RemainingPlayers = players.Where(p => !p.IsAuctioned && p.PlayerId != (currentPlayer?.PlayerId ?? -1)).ToList(),
                 SoldPlayers = players.Where(p => p.IsAuctioned).ToList(),
                 CurrentBids = currentBids,
                 IsPaused = lobby?.IsPaused ?? false,
@@ -879,7 +928,7 @@ namespace AuctionArena.Services
                 CurrentPlayer = currentPlayer,
                 CurrentHighestBid = auctionState?.CurrentHighestBid,
                 CurrentHighestBidder = currentBidder,
-                RemainingPlayers = players.Where(p => !p.IsAuctioned).ToList(),
+                RemainingPlayers = players.Where(p => !p.IsAuctioned && p.PlayerId != (currentPlayer?.PlayerId ?? -1)).ToList(),
                 SoldPlayers = soldPlayers,
                 RecentBids = recentBids,
                 CurrentBids = currentBids,

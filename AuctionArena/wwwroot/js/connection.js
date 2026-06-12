@@ -34,44 +34,61 @@ class AuctionConnection {
     }
 
     setupEventHandlers() {
+        console.log('🟢 Setting up event handlers');
+        
         this.connection.on('ReceiveBidUpdate', (data) => {
+            console.log('🟢 ReceiveBidUpdate from hub');
             this.trigger('bidUpdate', data);
         });
 
         this.connection.on('ReceivePlayerUpdate', (data) => {
+            console.log('🟢 ReceivePlayerUpdate from hub');
             this.trigger('playerUpdate', data);
         });
 
         this.connection.on('ReceivePlayerSold', (data) => {
+            console.log('🟢 ReceivePlayerSold from hub');
             this.trigger('playerSold', data);
         });
 
         this.connection.on('ReceivePauseUpdate', (isPaused) => {
+            console.log('🟢 ReceivePauseUpdate from hub');
             this.trigger('pauseUpdate', isPaused);
         });
 
         this.connection.on('ReceiveTeamUpdate', (data) => {
+            console.log('🟢 ReceiveTeamUpdate from hub');
             this.trigger('teamUpdate', data);
         });
 
         this.connection.on('ReceiveAuctionComplete', (message) => {
+            console.log('🟢 ReceiveAuctionComplete from hub');
             this.trigger('auctionComplete', message);
         });
 
         this.connection.on('ReceiveSaleRevoked', (data) => {
+            console.log('🟢 ReceiveSaleRevoked from hub');
             this.trigger('saleRevoked', data);
         });
 
         this.connection.on('ReceiveBidReset', (data) => {
+            console.log('🟢 ReceiveBidReset from hub');
             this.trigger('bidReset', data);
         });
 
         this.connection.on('ReceiveAuctionReactivated', () => {
+            console.log('🟢 ReceiveAuctionReactivated from hub');
             this.trigger('auctionReactivated', null);
         });
 
         this.connection.on('ReceiveTimerUpdate', (durationSeconds) => {
+            console.log('🟢 ReceiveTimerUpdate from hub');
             this.trigger('timerUpdate', durationSeconds);
+        });
+
+        this.connection.on('availablePlayersUpdate', (data) => {
+            console.log('🟢 availablePlayersUpdate from hub:', data);
+            this.trigger('availablePlayersUpdate', data);
         });
     }
 

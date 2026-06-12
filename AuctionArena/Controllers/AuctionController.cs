@@ -149,6 +149,7 @@ namespace AuctionArena.Controllers
         public async Task<IActionResult> DeletePlayer(string lobbyId, int playerId)
         {
             await _auctionService.DeletePlayerAsync(playerId);
+            TempData["Message"] = "Player deleted successfully";
             return RedirectToAction("ManagePlayers", new { lobbyId });
         }
 

@@ -4,10 +4,13 @@ let conn;
 let timer;
 let currentLobbyId;
 let currentPlayerId = 0;
+let currentPlayerName = '';
+let currentPosition = '';
 let pointsPerTeam = 1000;
 let justSold = false;
 
 async function initViewerDashboard(lobbyId, initialPointsPerTeam) {
+    console.log('🟢 initViewerDashboard started for lobby:', lobbyId);
     currentLobbyId = lobbyId;
     pointsPerTeam = initialPointsPerTeam;
 
@@ -24,6 +27,12 @@ async function initViewerDashboard(lobbyId, initialPointsPerTeam) {
     conn.on('auctionReactivated', handleAuctionReactivated);
     conn.on('timerUpdate', handleTimerUpdate);
     conn.on('reconnected', () => { fetchViewerState(); });
+    
+    console.log('🟢 Registering availablePlayersUpdate handler');
+    conn.on('availablePlayersUpdate', (data) => {
+        console.log('🟢 availablePlayersUpdate received:', data);
+        handleAvailablePlayersUpdate(data);
+    });
 
     await conn.connect(lobbyId);
 
@@ -56,8 +65,28 @@ function handlePlayerUpdate(data) {
     if (!panel) return;
 
     if (data.playerId) {
+        // If there was a previous player in auction (not sold), add it back to available first
+        // This handles the case where the host skips a player and immediately starts another
+        if (currentPlayerId && currentPlayerId !== data.playerId && !justSold) {
+            addPlayerBackToAvailable(currentPlayerId, currentPlayerName, currentPosition);
+        }
+
         currentPlayerId = data.playerId;
+        currentPlayerName = data.playerName || '';
+
+        currentPosition = data.position || '';
         justSold = false;
+
+        // Remove the player from the available list since they are now being auctioned
+        const availItem = document.querySelector(`#availablePlayersList [data-player-id="${data.playerId}"]`);
+        if (availItem) {
+            availItem.remove();
+            const availBadge = document.getElementById('availableCountBadge');
+            if (availBadge) availBadge.textContent = Math.max(0, parseInt(availBadge.textContent) - 1);
+            const availCount = document.getElementById('availableCount');
+            if (availCount) availCount.textContent = Math.max(0, parseInt(availCount.textContent) - 1);
+        }
+
         panel.innerHTML = `
             <div class="viewer-hero-content">
                 <div class="viewer-hero-position">${escapeHtml(data.position)}</div>
@@ -69,10 +98,18 @@ function handlePlayerUpdate(data) {
         `;
         timer.start();
     } else {
+        // No player in auction — if there was a player being auctioned that wasn't sold,
+        // add it back to the available list (e.g., player was skipped)
+        if (currentPlayerId && !justSold) {
+            addPlayerBackToAvailable(currentPlayerId, currentPlayerName, currentPosition);
+        }
+
         if (justSold) {
             justSold = false;
             setTimeout(() => {
                 currentPlayerId = 0;
+                currentPlayerName = '';
+                currentPosition = '';
                 panel.innerHTML = `
                     <div class="viewer-hero-empty">
                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3">
@@ -85,6 +122,8 @@ function handlePlayerUpdate(data) {
             }, 2500);
         } else {
             currentPlayerId = 0;
+            currentPlayerName = '';
+            currentPosition = '';
             panel.innerHTML = `
                 <div class="viewer-hero-empty">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3">
@@ -101,7 +140,6 @@ function handlePlayerUpdate(data) {
 
 function handlePlayerSold(data) {
     timer.stop();
-    currentPlayerId = 0;
     justSold = true;
 
     const panel = document.getElementById('heroAuctionPanel');
@@ -114,6 +152,16 @@ function handlePlayerSold(data) {
                 <div class="viewer-bid-amount" style="color:#10b981">${data.soldPrice} pts</div>
             </div>
         `;
+    }
+
+    // Remove from available list (in case it wasn't removed during handlePlayerUpdate)
+    const availItem = document.querySelector(`#availablePlayersList [data-player-id="${data.playerId}"]`);
+    if (availItem) {
+        availItem.remove();
+        const availBadge = document.getElementById('availableCountBadge');
+        if (availBadge) availBadge.textContent = Math.max(0, parseInt(availBadge.textContent) - 1);
+        const availCount = document.getElementById('availableCount');
+        if (availCount) availCount.textContent = Math.max(0, parseInt(availCount.textContent) - 1);
     }
 
     // Update sold players list
@@ -143,14 +191,6 @@ function handlePlayerSold(data) {
         const soldCount = document.getElementById('soldCount');
         if (soldCount) soldCount.textContent = parseInt(soldCount.textContent) + 1;
     }
-
-    // Remove from available
-    const availItem = document.querySelector(`#availablePlayersList [data-player-id="${data.playerId}"]`);
-    if (availItem) availItem.remove();
-    const availBadge = document.getElementById('availableCountBadge');
-    if (availBadge) availBadge.textContent = Math.max(0, parseInt(availBadge.textContent) - 1);
-    const availCount = document.getElementById('availableCount');
-    if (availCount) availCount.textContent = Math.max(0, parseInt(availCount.textContent) - 1);
 
     // Update total spent
     const totalSpentEl = document.getElementById('totalSpent');
@@ -195,7 +235,7 @@ function handleAuctionComplete(message) {
 }
 
 function handleSaleRevoked(data) {
-    // Move player back to available list
+    // Move player from sold list back to available list
     const soldItem = document.querySelector(`#soldPlayersList [data-player-id="${data.playerId}"]`);
     if (soldItem) {
         soldItem.remove();
@@ -205,26 +245,8 @@ function handleSaleRevoked(data) {
         if (soldCount) soldCount.textContent = Math.max(0, parseInt(soldCount.textContent) - 1);
     }
 
-    // Add back to available
-    const availList = document.getElementById('availablePlayersList');
-    if (availList) {
-        const emptyState = availList.querySelector('.viewer-empty-state');
-        if (emptyState) emptyState.remove();
-
-        const item = document.createElement('div');
-        item.className = 'viewer-player-item';
-        item.setAttribute('data-player-id', data.playerId);
-        item.innerHTML = `
-            <div class="viewer-player-name">${escapeHtml(data.playerName)}</div>
-            <div class="viewer-player-position"></div>
-        `;
-        availList.prepend(item);
-
-        const availBadge = document.getElementById('availableCountBadge');
-        if (availBadge) availBadge.textContent = parseInt(availBadge.textContent) + 1;
-        const availCount = document.getElementById('availableCount');
-        if (availCount) availCount.textContent = parseInt(availCount.textContent) + 1;
-    }
+    // Add back to available list with proper layout (use position from event data)
+    addPlayerBackToAvailable(data.playerId, data.playerName, data.position || '');
 
     // Update total spent
     const totalSpentEl = document.getElementById('totalSpent');
@@ -314,12 +336,178 @@ function addBidToFeed(teamName, bidAmount) {
     }
 }
 
+// Helper: Add a player back to the available players list
+function addPlayerBackToAvailable(playerId, playerName, position) {
+    const availList = document.getElementById('availablePlayersList');
+    if (!availList) return;
+
+    // Don't add duplicate
+    const existing = availList.querySelector(`[data-player-id="${playerId}"]`);
+    if (existing) return;
+
+    const emptyState = availList.querySelector('.viewer-empty-state');
+    if (emptyState) emptyState.remove();
+
+    const item = document.createElement('div');
+    item.className = 'viewer-player-item';
+    item.setAttribute('data-player-id', playerId);
+    item.innerHTML = `
+        <div class="viewer-player-name">${escapeHtml(playerName)}</div>
+        <div class="viewer-player-position">${escapeHtml(position)}</div>
+    `;
+    availList.prepend(item);
+
+    const availBadge = document.getElementById('availableCountBadge');
+    if (availBadge) availBadge.textContent = parseInt(availBadge.textContent) + 1;
+    const availCount = document.getElementById('availableCount');
+    if (availCount) availCount.textContent = parseInt(availCount.textContent) + 1;
+}
+
 async function fetchViewerState() {
     try {
         const response = await fetch(`/Auction/ViewerDashboardData?lobbyId=${currentLobbyId}`);
         const state = await response.json();
         if (state.currentPlayer) {
             currentPlayerId = state.currentPlayer.playerId;
+            currentPlayerName = state.currentPlayer.playerName || '';
+            currentPosition = state.currentPlayer.position || '';
+            justSold = false;
+
+            // Directly update the hero panel (don't use handlePlayerUpdate to avoid
+            // side-effects like removing items from the available list — the server
+            // already excludes the current player from RemainingPlayers)
+            const panel = document.getElementById('heroAuctionPanel');
+            if (panel) {
+                panel.innerHTML = `
+                    <div class="viewer-hero-content">
+                        <div class="viewer-hero-position">${escapeHtml(state.currentPlayer.position)}</div>
+                        <div class="viewer-hero-name">${escapeHtml(state.currentPlayer.playerName)}</div>
+                        <div class="viewer-hero-bid" id="bidDisplay">
+                            ${state.currentHighestBid
+                        ? `<div class="viewer-bid-amount">${state.currentHighestBid}</div>
+                                   <div class="viewer-bid-team">by ${escapeHtml(state.currentHighestBidder || '')}</div>`
+                        : `<div class="viewer-bid-waiting">Waiting for bids...</div>`
+                    }
+                        </div>
+                    </div>
+                `;
+            }
+
+            timer.start();
+        } else {
+            // No current player — make sure the hero panel shows the empty state
+            currentPlayerId = 0;
+            currentPlayerName = '';
+            currentPosition = '';
+            timer.stop();
+        }
+        // Update timer duration
+        if (state.timerDuration) {
+            timer.setDuration(state.timerDuration);
+        }
+        // Update status badge
+        const badge = document.getElementById('statusBadge');
+        const text = document.getElementById('statusText');
+        if (badge && text) {
+            if (!state.isActive) {
+                badge.className = 'viewer-status-badge ended';
+                text.textContent = 'ENDED';
+            } else if (state.isPaused) {
+                badge.className = 'viewer-status-badge paused';
+                text.textContent = 'PAUSED';
+            } else {
+                badge.className = 'viewer-status-badge live';
+                text.textContent = 'LIVE';
+            }
+        }
+    } catch (err) {
+        console.error('Failed to fetch viewer state:', err);
+    }
+}
+
+// Handler for available players list updates from SignalR
+function handleAvailablePlayersUpdate(data) {
+    console.log('🟢 handleAvailablePlayersUpdate called with data:', data);
+    const availList = document.getElementById('availablePlayersList');
+    console.log('🟢 availList element:', availList);
+    
+    if (!availList) {
+        console.warn('🔴 availablePlayersList element not found!');
+        return;
+    }
+
+    // Clear the current list
+    availList.innerHTML = '';
+    console.log('🟢 Cleared available players list');
+
+    // Repopulate with new data
+    if (data.players && data.players.length > 0) {
+        console.log('🟢 Adding', data.players.length, 'players to list');
+        data.players.forEach(player => {
+            const item = document.createElement('div');
+            item.className = 'viewer-player-item';
+            item.setAttribute('data-player-id', player.playerId);
+            item.innerHTML = `
+                <div class="viewer-player-name">${escapeHtml(player.playerName)}</div>
+                <div class="viewer-player-position">${escapeHtml(player.position || '')}</div>
+            `;
+            availList.appendChild(item);
+        });
+
+        // Update badges/counts
+        const availBadge = document.getElementById('availableCountBadge');
+        if (availBadge) availBadge.textContent = data.players.length;
+        const availCount = document.getElementById('availableCount');
+        if (availCount) availCount.textContent = data.players.length;
+        console.log('🟢 Updated available players count to:', data.players.length);
+    } else {
+        console.log('🟢 No players available');
+        // Show empty state
+        availList.innerHTML = '<div class="viewer-empty-state">No players available</div>';
+        const availBadge = document.getElementById('availableCountBadge');
+        if (availBadge) availBadge.textContent = '0';
+        const availCount = document.getElementById('availableCount');
+        if (availCount) availCount.textContent = '0';
+    }
+}
+
+async function fetchViewerState() {
+    try {
+        const response = await fetch(`/Auction/ViewerDashboardData?lobbyId=${currentLobbyId}`);
+        const state = await response.json();
+        if (state.currentPlayer) {
+            currentPlayerId = state.currentPlayer.playerId;
+            currentPlayerName = state.currentPlayer.playerName || '';
+            currentPosition = state.currentPlayer.position || '';
+            justSold = false;
+
+            // Directly update the hero panel (don't use handlePlayerUpdate to avoid
+            // side-effects like removing items from the available list — the server
+            // already excludes the current player from RemainingPlayers)
+            const panel = document.getElementById('heroAuctionPanel');
+            if (panel) {
+                panel.innerHTML = `
+                    <div class="viewer-hero-content">
+                        <div class="viewer-hero-position">${escapeHtml(state.currentPlayer.position)}</div>
+                        <div class="viewer-hero-name">${escapeHtml(state.currentPlayer.playerName)}</div>
+                        <div class="viewer-hero-bid" id="bidDisplay">
+                            ${state.currentHighestBid
+                        ? `<div class="viewer-bid-amount">${state.currentHighestBid}</div>
+                                   <div class="viewer-bid-team">by ${escapeHtml(state.currentHighestBidder || '')}</div>`
+                        : `<div class="viewer-bid-waiting">Waiting for bids...</div>`
+                    }
+                        </div>
+                    </div>
+                `;
+            }
+
+            timer.start();
+        } else {
+            // No current player — make sure the hero panel shows the empty state
+            currentPlayerId = 0;
+            currentPlayerName = '';
+            currentPosition = '';
+            timer.stop();
         }
         // Update timer duration
         if (state.timerDuration) {

@@ -1,5 +1,6 @@
 using AuctionArena.Hubs;
 using AuctionArena.Interfaces;
+using AuctionArena.Models;
 using Microsoft.AspNetCore.SignalR;
 
 namespace AuctionArena.Services.Notifications
@@ -108,6 +109,20 @@ namespace AuctionArena.Services.Notifications
         {
             _logger.LogInformation("Timer updated: Lobby {LobbyId}, Duration {Duration}s", lobbyId, durationSeconds);
             await _hubContext.Clients.Group(lobbyId).SendAsync("ReceiveTimerUpdate", durationSeconds);
+        }
+
+        public async Task NotifyAvailablePlayersUpdate(string lobbyId, List<Player> players)
+        {
+            _logger.LogInformation("Available players update: Lobby {LobbyId}, Count {Count}", lobbyId, players.Count);
+            await _hubContext.Clients.Group(lobbyId).SendAsync("availablePlayersUpdate", new
+            {
+                players = players.Select(p => new
+                {
+                    p.PlayerId,
+                    p.PlayerName,
+                    p.Position
+                }).ToList()
+            });
         }
     }
 }
