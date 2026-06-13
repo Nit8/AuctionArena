@@ -84,27 +84,32 @@
                 }
             </div>
 
-            <!-- Team Budgets -->
+            <!-- Team Budgets (Square Cards) -->
             <div class="viewer-card">
                 <div class="viewer-card-header">
                     <span>Team Budgets</span>
                 </div>
-                <div class="viewer-card-body" id="teamBudgetsList">
+                <div class="viewer-team-budgets-grid" id="teamBudgetsList">
                     @foreach (var team in Model.Teams)
                     {
                         var budgetPercent = Model.Lobby.PointsPerTeam > 0
                             ? Math.Round((double)team.RemainingPoints / Model.Lobby.PointsPerTeam * 100)
                             : 0;
-                        <div class="viewer-budget-item" data-team-id="@team.TeamId">
-                            <div class="viewer-budget-info">
-                                <span class="viewer-budget-name">@team.TeamName</span>
-                                <span class="viewer-budget-points">@team.RemainingPoints pts</span>
+                        <div class="team-budget-card" data-team-id="@team.TeamId" data-team-name="@team.TeamName">
+                            <div class="team-budget-card-header">@team.TeamName</div>
+                            <div class="team-budget-card-points">
+                                <span class="team-budget-pts">@team.RemainingPoints</span>
+                                <span class="team-budget-pts-label">pts left</span>
                             </div>
-                            <div class="viewer-budget-bar">
-                                <div class="viewer-budget-fill" style="width:@budgetPercent%"></div>
+                            <div class="team-budget-card-bar">
+                                <div class="team-budget-card-fill" style="width:@budgetPercent%"></div>
                             </div>
-                            <div class="viewer-budget-meta">
-                                <span>@team.PlayerCount players</span>
+                            <div class="team-budget-card-footer">
+                                <span class="team-budget-players">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                    @team.PlayerCount
+                                </span>
+                                <span class="team-budget-spent">spent @((Model.Lobby.PointsPerTeam - team.RemainingPoints))</span>
                             </div>
                         </div>
                     }
@@ -186,6 +191,44 @@
                     }
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Team Rosters -->
+    <div class="viewer-team-rosters" id="teamRostersSection">
+        <div class="viewer-rosters-header">
+            <h2 class="viewer-rosters-title">Team Rosters</h2>
+        </div>
+        <div class="viewer-rosters-grid" id="teamRostersGrid">
+            @foreach (var team in Model.Teams)
+            {
+                var teamPlayers = Model.SoldPlayers.Where(p => p.SoldToTeamId == team.TeamId).ToList();
+                <div class="team-roster-card" data-team-id="@team.TeamId" data-team-name="@team.TeamName">
+                    <div class="team-roster-header">
+                        <span class="team-roster-name">@team.TeamName</span>
+                        <span class="team-roster-count">@teamPlayers.Count players</span>
+                    </div>
+                    <div class="team-roster-players" id="roster-@team.TeamId">
+                        @if (teamPlayers.Any())
+                        {
+                            foreach (var player in teamPlayers)
+                            {
+                                <div class="roster-player-item" data-player-id="@player.PlayerId">
+                                    <div class="roster-player-info">
+                                        <span class="roster-player-name">@player.PlayerName</span>
+                                        <span class="roster-player-position">@player.Position</span>
+                                    </div>
+                                    <span class="roster-player-price">@player.SoldPrice</span>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="roster-empty">No players yet</div>
+                        }
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>

@@ -198,6 +198,44 @@ function handlePlayerSold(data) {
 
     // Update team display
     updateTeamDisplay(data.teamId, data.teamName);
+
+    // Add player to team roster
+    addPlayerToRoster(data.teamId, data.playerId, data.playerName, data.position, data.soldPrice);
+}
+
+function addPlayerToRoster(teamId, playerId, playerName, position, soldPrice) {
+    const roster = document.getElementById(`roster-${teamId}`);
+    if (!roster) return;
+
+    // Remove empty state if present
+    const emptyState = roster.querySelector('.roster-empty');
+    if (emptyState) emptyState.remove();
+
+    // Check if player already exists
+    const existing = roster.querySelector(`[data-player-id="${playerId}"]`);
+    if (existing) return;
+
+    const item = document.createElement('div');
+    item.className = 'roster-player-item';
+    item.setAttribute('data-player-id', playerId);
+    item.innerHTML = `
+        <div class="roster-player-info">
+            <span class="roster-player-name">${escapeHtml(playerName)}</span>
+            <span class="roster-player-position">${escapeHtml(position || '')}</span>
+        </div>
+        <span class="roster-player-price">${soldPrice}</span>
+    `;
+    roster.appendChild(item);
+
+    // Update team roster header count
+    const rosterCard = roster.closest('.team-roster-card');
+    if (rosterCard) {
+        const countEl = rosterCard.querySelector('.team-roster-count');
+        if (countEl) {
+            const current = parseInt(countEl.textContent) || 0;
+            countEl.textContent = `${current + 1} players`;
+        }
+    }
 }
 
 function handlePauseUpdate(isPaused) {
@@ -212,12 +250,12 @@ function handlePauseUpdate(isPaused) {
 function handleTeamUpdate(data) {
     const el = document.querySelector(`[data-team-id="${data.teamId}"]`);
     if (el) {
-        const pointsEl = el.querySelector('.viewer-budget-points');
+        const pointsEl = el.querySelector('.team-budget-pts');
         if (pointsEl && data.remainingPoints != null) {
-            pointsEl.textContent = `${data.remainingPoints} pts`;
+            pointsEl.textContent = data.remainingPoints;
         }
         // Update progress bar
-        const fillEl = el.querySelector('.viewer-budget-fill');
+        const fillEl = el.querySelector('.team-budget-card-fill');
         if (fillEl && pointsPerTeam > 0) {
             const percent = Math.round((data.remainingPoints / pointsPerTeam) * 100);
             fillEl.style.width = `${percent}%`;
@@ -254,6 +292,9 @@ function handleSaleRevoked(data) {
 
     // Update team
     updateTeamDisplay(data.teamId, data.teamName);
+
+    // Remove player from team roster
+    removePlayerFromRoster(data.teamId, data.playerId);
 
     // Update status back to active if it was ended
     const badge = document.getElementById('statusBadge');
@@ -297,22 +338,54 @@ async function updateTeamDisplay(teamId, teamName) {
     try {
         const response = await fetch(`/Auction/ViewerDashboardData?lobbyId=${currentLobbyId}`);
         const state = await response.json();
-        const team = state.teams?.find(t => t.teamId === teamId);
+        const team = state.teams?.find(t => t.teamId == teamId);
         if (team) {
             const el = document.querySelector(`[data-team-id="${teamId}"]`);
             if (el) {
-                const pointsEl = el.querySelector('.viewer-budget-points');
-                if (pointsEl) pointsEl.textContent = `${team.remainingPoints} pts`;
-                const fillEl = el.querySelector('.viewer-budget-fill');
+                const pointsEl = el.querySelector('.team-budget-pts');
+                if (pointsEl) pointsEl.textContent = team.remainingPoints;
+                const fillEl = el.querySelector('.team-budget-card-fill');
                 if (fillEl && pointsPerTeam > 0) {
                     fillEl.style.width = `${Math.round((team.remainingPoints / pointsPerTeam) * 100)}%`;
                 }
-                const metaEl = el.querySelector('.viewer-budget-meta span');
-                if (metaEl) metaEl.textContent = `${team.playerCount} players`;
+                const footer = el.querySelector('.team-budget-card-footer');
+                if (footer) {
+                    const playersEl = footer.querySelector('.team-budget-players');
+                    if (playersEl) playersEl.innerHTML = `
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        ${team.playerCount}
+                    `;
+                    const spentEl = footer.querySelector('.team-budget-spent');
+                    if (spentEl) spentEl.textContent = `spent ${pointsPerTeam - team.remainingPoints}`;
+                }
             }
         }
     } catch (err) {
         console.error('Failed to update team display:', err);
+    }
+}
+
+function removePlayerFromRoster(teamId, playerId) {
+    const roster = document.getElementById(`roster-${teamId}`);
+    if (!roster) return;
+
+    const item = roster.querySelector(`[data-player-id="${playerId}"]`);
+    if (item) {
+        item.remove();
+        // Show empty state if no players left
+        if (roster.children.length === 0) {
+            roster.innerHTML = '<div class="roster-empty">No players yet</div>';
+        }
+    }
+
+    // Update team roster header count
+    const rosterCard = roster.closest('.team-roster-card');
+    if (rosterCard) {
+        const countEl = rosterCard.querySelector('.team-roster-count');
+        if (countEl) {
+            const current = Math.max(0, parseInt(countEl.textContent) || 0);
+            countEl.textContent = `${current - 1} players`;
+        }
     }
 }
 
@@ -363,67 +436,7 @@ function addPlayerBackToAvailable(playerId, playerName, position) {
     if (availCount) availCount.textContent = parseInt(availCount.textContent) + 1;
 }
 
-async function fetchViewerState() {
-    try {
-        const response = await fetch(`/Auction/ViewerDashboardData?lobbyId=${currentLobbyId}`);
-        const state = await response.json();
-        if (state.currentPlayer) {
-            currentPlayerId = state.currentPlayer.playerId;
-            currentPlayerName = state.currentPlayer.playerName || '';
-            currentPosition = state.currentPlayer.position || '';
-            justSold = false;
 
-            // Directly update the hero panel (don't use handlePlayerUpdate to avoid
-            // side-effects like removing items from the available list — the server
-            // already excludes the current player from RemainingPlayers)
-            const panel = document.getElementById('heroAuctionPanel');
-            if (panel) {
-                panel.innerHTML = `
-                    <div class="viewer-hero-content">
-                        <div class="viewer-hero-position">${escapeHtml(state.currentPlayer.position)}</div>
-                        <div class="viewer-hero-name">${escapeHtml(state.currentPlayer.playerName)}</div>
-                        <div class="viewer-hero-bid" id="bidDisplay">
-                            ${state.currentHighestBid
-                        ? `<div class="viewer-bid-amount">${state.currentHighestBid}</div>
-                                   <div class="viewer-bid-team">by ${escapeHtml(state.currentHighestBidder || '')}</div>`
-                        : `<div class="viewer-bid-waiting">Waiting for bids...</div>`
-                    }
-                        </div>
-                    </div>
-                `;
-            }
-
-            timer.start();
-        } else {
-            // No current player — make sure the hero panel shows the empty state
-            currentPlayerId = 0;
-            currentPlayerName = '';
-            currentPosition = '';
-            timer.stop();
-        }
-        // Update timer duration
-        if (state.timerDuration) {
-            timer.setDuration(state.timerDuration);
-        }
-        // Update status badge
-        const badge = document.getElementById('statusBadge');
-        const text = document.getElementById('statusText');
-        if (badge && text) {
-            if (!state.isActive) {
-                badge.className = 'viewer-status-badge ended';
-                text.textContent = 'ENDED';
-            } else if (state.isPaused) {
-                badge.className = 'viewer-status-badge paused';
-                text.textContent = 'PAUSED';
-            } else {
-                badge.className = 'viewer-status-badge live';
-                text.textContent = 'LIVE';
-            }
-        }
-    } catch (err) {
-        console.error('Failed to fetch viewer state:', err);
-    }
-}
 
 // Handler for available players list updates from SignalR
 function handleAvailablePlayersUpdate(data) {
