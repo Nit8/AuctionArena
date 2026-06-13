@@ -9,7 +9,8 @@ namespace AuctionArena.Models
         [RegularExpression(@"^[A-Za-z0-9]+$", ErrorMessage = "Lobby code must contain only letters and numbers")]
         public string LobbyId { get; set; } = string.Empty;
 
-        [StringLength(100, ErrorMessage = "Password must be at most 100 characters")]
-        public string? Password { get; set; }
+        [Required(ErrorMessage = "Host access key is required")]
+        [StringLength(100, ErrorMessage = "Host access key must be at most 100 characters")]
+        public string HostAccessKey { get; set; } = string.Empty;
     }
 }

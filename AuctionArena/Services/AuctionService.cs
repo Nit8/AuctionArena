@@ -65,6 +65,14 @@ namespace AuctionArena.Services
             return Convert.ToBase64String(bytes).Replace("+", "").Replace("/", "").Replace("=", "").ToUpperInvariant();
         }
 
+        // ─── Host Access Key Generation ───
+        private static string GenerateHostAccessKey()
+        {
+            var bytes = RandomNumberGenerator.GetBytes(24);
+            return Convert.ToBase64String(bytes)
+                .Replace("+", "").Replace("/", "").Replace("=", "");
+        }
+
         // ─── Lobby Operations ───
         public async Task<(string LobbyId, string? Error)> CreateLobbyAsync(CreateLobbyViewModel model)
         {
@@ -78,6 +86,7 @@ namespace AuctionArena.Services
 
             string? passwordHash = null;
             string? passwordSalt = null;
+            string hostAccessKey = GenerateHostAccessKey();
             if (!string.IsNullOrEmpty(model.Password))
             {
                 (passwordHash, passwordSalt) = HashPassword(model.Password);
@@ -91,6 +100,7 @@ namespace AuctionArena.Services
                 PasswordHash = passwordHash,
                 PasswordSalt = passwordSalt,
                 Password = null, // Don't store plaintext
+                HostAccessKey = hostAccessKey,
                 TotalTeams = model.TotalTeams,
                 PlayersPerTeam = model.PlayersPerTeam,
                 PointsPerTeam = model.PointsPerTeam,
@@ -160,25 +170,12 @@ namespace AuctionArena.Services
             if (lobby == null)
                 return (string.Empty, "Lobby not found. Check the lobby code and try again.");
 
-            // Verify password — lobby must have a password set for host resume
-            if (!string.IsNullOrEmpty(lobby.PasswordHash) && !string.IsNullOrEmpty(lobby.PasswordSalt))
-            {
-                if (string.IsNullOrEmpty(model.Password) || !VerifyPassword(model.Password, lobby.PasswordHash, lobby.PasswordSalt))
-                    return (string.Empty, "Incorrect password");
-            }
-            else if (!string.IsNullOrEmpty(lobby.Password))
-            {
-                // Legacy plaintext support
-#pragma warning disable CS0618
-                if (string.IsNullOrEmpty(model.Password) || lobby.Password != model.Password)
-                    return (string.Empty, "Incorrect password");
-#pragma warning restore CS0618
-            }
-            else
-            {
-                // No password set on lobby — cannot resume (security requirement)
-                return (string.Empty, "This lobby does not have a password set. Only password-protected lobbies can be resumed.");
-            }
+            // Verify host access key
+            if (string.IsNullOrEmpty(lobby.HostAccessKey))
+                return (string.Empty, "This lobby does not support resume. Host access key was not generated.");
+
+            if (string.IsNullOrEmpty(model.HostAccessKey) || lobby.HostAccessKey != model.HostAccessKey.Trim())
+                return (string.Empty, "Invalid host access key");
 
             _logger.LogInformation("Host resumed lobby {LobbyId}", lobbyId);
             return (lobbyId, null);

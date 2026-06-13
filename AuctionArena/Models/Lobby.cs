@@ -11,6 +11,7 @@ namespace AuctionArena.Models
         public string? PasswordSalt { get; set; }
         [Obsolete("Use PasswordHash instead")]
         public string? Password { get; set; } // Keep for migration compatibility
+        public string? HostAccessKey { get; set; }
         public int TotalTeams { get; set; }
         public int PlayersPerTeam { get; set; }
         public int PointsPerTeam { get; set; }

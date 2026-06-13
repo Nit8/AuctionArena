@@ -51,6 +51,35 @@
         </div>
     </div>
 
+    <!-- Host Access Key -->
+    @if (!string.IsNullOrEmpty(Model.Lobby.HostAccessKey))
+    {
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card-auction" style="border:1px solid var(--accent)">
+                    <div class="card-body-auction p-3">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+                            <div>
+                                <h6 style="font-weight:700;color:var(--accent);margin-bottom:0.25rem">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.25rem">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                                    </svg>
+                                    Host Access Key
+                                </h6>
+                                <p style="font-size:0.8rem;color:var(--gray-500);margin:0">Save this key to resume as host later. Keep it secret.</p>
+                            </div>
+                            <div style="display:flex;gap:0.5rem;align-items:center">
+                                <code id="hostAccessKey" style="padding:0.5rem 0.75rem;background:var(--gray-900);color:var(--accent);font-size:0.85rem;letter-spacing:1px;border-radius:0.5rem;user-select:all">@Model.Lobby.HostAccessKey</code>
+                                <button class="btn-auction btn-warning-auction btn-sm-auction" onclick="navigator.clipboard.writeText(document.getElementById('hostAccessKey').textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- Timer Presets & Quick Actions -->
     <div class="row mb-3">
         <div class="col-md-6">

@@ -23,10 +23,10 @@ namespace AuctionArena.Repositories
             using var connection = GetConnection();
             await connection.ExecuteAsync(@"
                 INSERT INTO Lobbies (LobbyId, HostName, GameName, Password, PasswordHash, PasswordSalt,
-                    TotalTeams, PlayersPerTeam, PointsPerTeam, MinPlayersPerTeam, MaxPlayersPerTeam,
+                    HostAccessKey, TotalTeams, PlayersPerTeam, PointsPerTeam, MinPlayersPerTeam, MaxPlayersPerTeam,
                     CreatedAt, IsActive, IsPaused)
                 VALUES (@LobbyId, @HostName, @GameName, @Password, @PasswordHash, @PasswordSalt,
-                    @TotalTeams, @PlayersPerTeam, @PointsPerTeam, @MinPlayersPerTeam, @MaxPlayersPerTeam,
+                    @HostAccessKey, @TotalTeams, @PlayersPerTeam, @PointsPerTeam, @MinPlayersPerTeam, @MaxPlayersPerTeam,
                     @CreatedAt, @IsActive, @IsPaused)
             ", lobby);
             return lobby.LobbyId;

@@ -106,11 +106,12 @@ namespace AuctionArena.Services
             CreateIndexIfNotExists(connection, "IX_Bids_PlayerId", "Bids(PlayerId)");
             CreateIndexIfNotExists(connection, "IX_Bids_LobbyId", "Bids(LobbyId)");
 
-            // Migration: Add PasswordHash and PasswordSalt columns if they don't exist
+            // Migration: Add columns if they don't exist
             MigrateAddColumnIfNotExists(connection, "Lobbies", "PasswordHash", "TEXT");
             MigrateAddColumnIfNotExists(connection, "Lobbies", "PasswordSalt", "TEXT");
             MigrateAddColumnIfNotExists(connection, "AuctionState", "Version", "INTEGER DEFAULT 1");
             MigrateAddColumnIfNotExists(connection, "AuctionState", "TimerDuration", "INTEGER DEFAULT 30");
+            MigrateAddColumnIfNotExists(connection, "Lobbies", "HostAccessKey", "TEXT");
 
             _logger.LogInformation("Database initialized successfully with indexes");
         }
