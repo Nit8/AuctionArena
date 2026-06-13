@@ -475,6 +475,7 @@ function onTimerExpired() {
         ToastManager.show('Time expired — auto-confirming sale!', 'warning');
         confirmSale();
     } else {
-        ToastManager.show('Bidding time expired — no bids placed', 'warning');
+        ToastManager.show('Bidding time expired — skipping player', 'warning');
+        skipPlayer();
     }
 }
