@@ -1,5 +1,6 @@
 using AuctionArena.Interfaces;
 using AuctionArena.Models;
+using Dapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
@@ -244,8 +245,19 @@ namespace AuctionArena.Services
                 if (team.PlayerCount >= lobby.MaxPlayersPerTeam)
                     return (false, "Team has reached maximum players");
 
+                if (team.IsSuspended)
+                    return (false, "Your team has been suspended from bidding. Contact the host.");
+
                 if (auctionState.CurrentHighestBidderTeamId == teamId)
                     return (false, "You already have the highest bid");
+
+                // Enforce bid increment
+                if (lobby.BidIncrement > 0 && auctionState.CurrentHighestBid != null)
+                {
+                    var minimumBid = auctionState.CurrentHighestBid.Value + lobby.BidIncrement;
+                    if (bidAmount < minimumBid)
+                        return (false, $"Bid must be at least {minimumBid} (minimum increment: {lobby.BidIncrement})");
+                }
 
                 // Create bid
                 var bid = new Bid
@@ -593,6 +605,48 @@ namespace AuctionArena.Services
                 _logger.LogError(ex, "Error setting timer duration in lobby {LobbyId}", lobbyId);
                 return (false, 30, "Error setting timer duration. Please try again.");
             }
+        }
+
+        public async Task<(bool Success, string? Error)> SetBidIncrementAsync(string lobbyId, int bidIncrement)
+        {
+            if (bidIncrement < 0)
+                return (false, "Bid increment must be 0 or positive");
+
+            if (bidIncrement > 10000)
+                return (false, "Bid increment cannot exceed 10,000");
+
+            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+            if (lobby == null)
+                return (false, "Lobby not found");
+
+            using var connection = new Microsoft.Data.Sqlite.SqliteConnection(_connectionString);
+            await connection.ExecuteAsync(
+                "UPDATE Lobbies SET BidIncrement = @BidIncrement WHERE LobbyId = @LobbyId",
+                new { BidIncrement = bidIncrement, LobbyId = lobbyId });
+
+            await _notificationService.NotifyBidIncrementUpdate(lobbyId, bidIncrement);
+
+            _logger.LogInformation("Bid increment set to {BidIncrement} for lobby {LobbyId}", bidIncrement, lobbyId);
+            return (true, null);
+        }
+
+        public async Task<(bool Success, bool IsSuspended, string? Error)> ToggleTeamSuspensionAsync(string lobbyId, int teamId)
+        {
+            var team = await _teamRepo.GetTeamAsync(teamId);
+            if (team == null)
+                return (false, false, "Team not found");
+
+            if (team.LobbyId != lobbyId)
+                return (false, false, "Team does not belong to this lobby");
+
+            var newSuspensionState = !team.IsSuspended;
+            await _teamRepo.UpdateTeamSuspensionAsync(teamId, newSuspensionState);
+
+            await _notificationService.NotifyTeamSuspension(lobbyId, teamId, team.TeamName, newSuspensionState);
+
+            _logger.LogInformation("Team {TeamName} (ID:{TeamId}) suspended={IsSuspended} in lobby {LobbyId}",
+                team.TeamName, teamId, newSuspensionState, lobbyId);
+            return (true, newSuspensionState, null);
         }
 
         // ─── Player Management ───

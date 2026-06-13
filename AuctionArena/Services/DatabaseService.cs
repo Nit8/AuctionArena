@@ -112,6 +112,8 @@ namespace AuctionArena.Services
             MigrateAddColumnIfNotExists(connection, "AuctionState", "Version", "INTEGER DEFAULT 1");
             MigrateAddColumnIfNotExists(connection, "AuctionState", "TimerDuration", "INTEGER DEFAULT 30");
             MigrateAddColumnIfNotExists(connection, "Lobbies", "HostAccessKey", "TEXT");
+            MigrateAddColumnIfNotExists(connection, "Lobbies", "BidIncrement", "INTEGER DEFAULT 0");
+            MigrateAddColumnIfNotExists(connection, "Teams", "IsSuspended", "INTEGER DEFAULT 0");
 
             _logger.LogInformation("Database initialized successfully with indexes");
         }

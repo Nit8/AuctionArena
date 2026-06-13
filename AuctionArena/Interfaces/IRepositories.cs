@@ -21,6 +21,7 @@ namespace AuctionArena.Interfaces
         Task AddPointsToTeamAsync(int teamId, int additionalPoints);
         Task UpdateTeamPlayerCountAsync(int teamId, int playerCount);
         Task DeductTeamPointsAsync(int teamId, int amount);
+        Task UpdateTeamSuspensionAsync(int teamId, bool isSuspended);
     }
 
     public interface IPlayerRepository

@@ -27,6 +27,10 @@ namespace AuctionArena.Interfaces
         Task<(bool Success, string? Error)> DeductTeamPointsAsync(string lobbyId, int teamId, int points);
         Task<(bool Success, int Duration, string? Error)> SetTimerDurationAsync(string lobbyId, int durationSeconds);
 
+        // Lobby config
+        Task<(bool Success, string? Error)> SetBidIncrementAsync(string lobbyId, int bidIncrement);
+        Task<(bool Success, bool IsSuspended, string? Error)> ToggleTeamSuspensionAsync(string lobbyId, int teamId);
+
         // Player management
         Task<int> AddPlayerAsync(string lobbyId, string playerName, string position);
         Task<int> ImportPlayersAsync(string lobbyId, string playersData);

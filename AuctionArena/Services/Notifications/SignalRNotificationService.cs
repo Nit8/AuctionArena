@@ -124,5 +124,21 @@ namespace AuctionArena.Services.Notifications
                 }).ToList()
             });
         }
+        public async Task NotifyTeamSuspension(string lobbyId, int teamId, string teamName, bool isSuspended)
+        {
+            _logger.LogInformation("Team suspension: Lobby {LobbyId}, Team {TeamName} suspended={IsSuspended}", lobbyId, teamName, isSuspended);
+            await _hubContext.Clients.Group(lobbyId).SendAsync("ReceiveTeamSuspension", new
+            {
+                teamId,
+                teamName,
+                isSuspended
+            });
+        }
+
+        public async Task NotifyBidIncrementUpdate(string lobbyId, int bidIncrement)
+        {
+            _logger.LogInformation("Bid increment updated: Lobby {LobbyId}, Increment={BidIncrement}", lobbyId, bidIncrement);
+            await _hubContext.Clients.Group(lobbyId).SendAsync("ReceiveBidIncrementUpdate", bidIncrement);
+        }
     }
 }

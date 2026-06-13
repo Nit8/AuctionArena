@@ -15,5 +15,7 @@ namespace AuctionArena.Interfaces
         Task NotifyAuctionReactivated(string lobbyId);
         Task NotifyTimerUpdate(string lobbyId, int durationSeconds);
         Task NotifyAvailablePlayersUpdate(string lobbyId, List<Player> players);
+        Task NotifyTeamSuspension(string lobbyId, int teamId, string teamName, bool isSuspended);
+        Task NotifyBidIncrementUpdate(string lobbyId, int bidIncrement);
     }
 }

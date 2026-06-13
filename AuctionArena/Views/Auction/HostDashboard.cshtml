@@ -208,6 +208,9 @@
                                         <span class="badge-auction badge-info team-player-count">@team.PlayerCount Players</span>
                                         <span class="badge-auction badge-success team-points">@team.RemainingPoints Points</span>
                                     </div>
+                                    <button class="btn-auction btn-warning-auction btn-sm-auction" data-suspend-team-id="@team.TeamId" onclick="toggleTeamSuspension(@team.TeamId)">
+                                        @(team.IsSuspended ? "Unsuspend" : "Suspend")
+                                    </button>
                                 </div>
                             </div>
                         }

@@ -23,10 +23,10 @@ namespace AuctionArena.Repositories
             using var connection = GetConnection();
             await connection.ExecuteAsync(@"
                 INSERT INTO Lobbies (LobbyId, HostName, GameName, Password, PasswordHash, PasswordSalt,
-                    HostAccessKey, TotalTeams, PlayersPerTeam, PointsPerTeam, MinPlayersPerTeam, MaxPlayersPerTeam,
+                    HostAccessKey, BidIncrement, TotalTeams, PlayersPerTeam, PointsPerTeam, MinPlayersPerTeam, MaxPlayersPerTeam,
                     CreatedAt, IsActive, IsPaused)
                 VALUES (@LobbyId, @HostName, @GameName, @Password, @PasswordHash, @PasswordSalt,
-                    @HostAccessKey, @TotalTeams, @PlayersPerTeam, @PointsPerTeam, @MinPlayersPerTeam, @MaxPlayersPerTeam,
+                    @HostAccessKey, @BidIncrement, @TotalTeams, @PlayersPerTeam, @PointsPerTeam, @MinPlayersPerTeam, @MaxPlayersPerTeam,
                     @CreatedAt, @IsActive, @IsPaused)
             ", lobby);
             return lobby.LobbyId;
@@ -140,6 +140,13 @@ namespace AuctionArena.Repositories
             await connection.ExecuteAsync(
                 "UPDATE Teams SET RemainingPoints = RemainingPoints - @Amount WHERE TeamId = @TeamId AND RemainingPoints >= @Amount",
                 new { TeamId = teamId, Amount = amount });
+        }
+        public async Task UpdateTeamSuspensionAsync(int teamId, bool isSuspended)
+        {
+            using var connection = GetConnection();
+            await connection.ExecuteAsync(
+                "UPDATE Teams SET IsSuspended = @IsSuspended WHERE TeamId = @TeamId",
+                new { TeamId = teamId, IsSuspended = isSuspended });
         }
     }
 

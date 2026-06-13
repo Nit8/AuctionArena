@@ -507,6 +507,28 @@ namespace AuctionArena.Controllers
             return Json(ApiResponse.Ok(new { Duration = duration }, $"Timer set to {duration} seconds"));
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetBidIncrement(string lobbyId, int bidIncrement)
+        {
+            var (success, error) = await _auctionService.SetBidIncrementAsync(lobbyId, bidIncrement);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to set bid increment"));
+
+            return Json(ApiResponse.Ok(new { BidIncrement = bidIncrement }, $"Bid increment set to {bidIncrement}"));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleTeamSuspension(string lobbyId, int teamId)
+        {
+            var (success, isSuspended, error) = await _auctionService.ToggleTeamSuspensionAsync(lobbyId, teamId);
+            if (!success)
+                return Json(ApiResponse.Fail(error ?? "Failed to toggle team suspension"));
+
+            return Json(ApiResponse.Ok(new { IsSuspended = isSuspended }, isSuspended ? "Team suspended" : "Team unsuspended"));
+        }
+
         // ─── Bid History API ───
         [HttpGet]
         public async Task<IActionResult> BidHistory(string lobbyId, int playerId)

@@ -21,6 +21,8 @@ async function initHostDashboard(lobbyId) {
     conn.on('auctionReactivated', handleAuctionReactivated);
     conn.on('timerUpdate', handleTimerUpdate);
     conn.on('reconnected', () => { fetchAuctionState(); });
+    conn.on('teamSuspension', handleTeamSuspension);
+    // conn.on('bidIncrementUpdate', handleBidIncrementUpdate);
 
     await conn.connect(lobbyId);
 
@@ -435,6 +437,74 @@ async function setTimerDuration(seconds) {
     } else {
         ToastManager.show(result.message || 'Failed to set timer', 'error');
     }
+}
+
+async function setBidIncrement(increment) {
+    const result = await conn.post('/Auction/SetBidIncrement', { lobbyId: currentLobbyId, bidIncrement: increment });
+    if (result.success) {
+        ToastManager.show(`Bid increment set to +${increment}`, 'success', 2000);
+    } else {
+        ToastManager.show(result.message || 'Failed to set bid increment', 'error');
+    }
+}
+
+async function toggleTeamSuspension(teamId) {
+    const result = await conn.post('/Auction/ToggleTeamSuspension', { lobbyId: currentLobbyId, teamId });
+    if (result.success) {
+        const action = result.data?.isSuspended ? 'Suspended' : 'Unsuspended';
+        ToastManager.show(`Team ${action}`, 'success', 2000);
+        // Update the button in the team card
+        const btn = document.querySelector(`[data-suspend-team-id="${teamId}"]`);
+        if (btn) {
+            const isSuspended = result.data?.isSuspended;
+            btn.textContent = isSuspended ? 'Unsuspend' : 'Suspend';
+            btn.className = isSuspended
+                ? 'btn-auction btn-success-auction btn-sm-auction'
+                : 'btn-auction btn-warning-auction btn-sm-auction';
+        }
+        // Update team card visual
+        const teamCard = document.querySelector(`[data-team-id="${teamId}"]`);
+        if (teamCard) {
+            if (isSuspended) {
+                teamCard.classList.add('team-suspended');
+            } else {
+                teamCard.classList.remove('team-suspended');
+            }
+        }
+    } else {
+        ToastManager.show(result.message || 'Failed to toggle suspension', 'error');
+    }
+}
+
+function handleTeamSuspension(data) {
+    const btn = document.querySelector(`[data-suspend-team-id="${data.teamId}"]`);
+    if (btn) {
+        btn.textContent = data.isSuspended ? 'Unsuspend' : 'Suspend';
+        btn.className = data.isSuspended
+            ? 'btn-auction btn-success-auction btn-sm-auction'
+            : 'btn-auction btn-warning-auction btn-sm-auction';
+    }
+    const teamCard = document.querySelector(`[data-team-id="${data.teamId}"]`);
+    if (teamCard) {
+        if (data.isSuspended) {
+            teamCard.classList.add('team-suspended');
+        } else {
+            teamCard.classList.remove('team-suspended');
+        }
+    }
+}
+
+function handleBidIncrementUpdate(bidIncrement) {
+    // Update the active increment button highlight
+    document.querySelectorAll('[data-bid-increment]').forEach(btn => {
+        btn.style.background = parseInt(btn.dataset.bidIncrement) === bidIncrement
+            ? 'rgba(245,158,11,0.2)' : 'rgba(99,102,241,0.1)';
+        btn.style.color = parseInt(btn.dataset.bidIncrement) === bidIncrement
+            ? '#f59e0b' : '#6366f1';
+        btn.style.borderColor = parseInt(btn.dataset.bidIncrement) === bidIncrement
+            ? 'rgba(245,158,11,0.5)' : 'rgba(99,102,241,0.3)';
+    });
+    ToastManager.show(`Bid increment updated to +${bidIncrement}`, 'info', 2000);
 }
 
 function exportData() {

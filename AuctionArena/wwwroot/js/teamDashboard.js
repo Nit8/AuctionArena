@@ -11,6 +11,7 @@ async function initTeamDashboard(lobbyId, teamId, initialPlayerId = 0) {
     currentLobbyId = lobbyId;
     currentTeamId = teamId;
     currentPlayerId = initialPlayerId;
+    let currentBidIncrement = 0;
 
     conn = new AuctionConnection('/auctionHub');
 
@@ -22,6 +23,8 @@ async function initTeamDashboard(lobbyId, teamId, initialPlayerId = 0) {
     conn.on('auctionComplete', handleAuctionComplete);
     conn.on('availablePlayersUpdate', handleAvailablePlayersUpdate);
     conn.on('reconnected', () => { fetchAuctionState(); });
+    conn.on('teamSuspension', handleTeamSuspension);
+    conn.on('bidIncrementUpdate', handleBidIncrementUpdate);
 
     await conn.connect(lobbyId);
 
@@ -248,6 +251,25 @@ function handleAuctionComplete(message) {
     ToastManager.show(message, 'success', 8000);
 }
 
+function handleTeamSuspension(data) {
+    if (data.teamId === currentTeamId) {
+        if (data.isSuspended) {
+            ToastManager.show('Your team has been suspended from bidding by the host.', 'error', 6000);
+            const bidBtn = document.getElementById('bidButton');
+            if (bidBtn) bidBtn.disabled = true;
+        } else {
+            ToastManager.show('Your team has been unsuspended! You can bid again.', 'success', 4000);
+        }
+    }
+}
+
+function handleBidIncrementUpdate(bidIncrement) {
+    currentBidIncrement = bidIncrement;
+    if (bidIncrement > 0) {
+        ToastManager.show(`Minimum bid increment is now +${bidIncrement}`, 'info', 3000);
+    }
+}
+
 function renderAvailablePlayers(players) {
     const list = document.getElementById('availablePlayersList');
     const countEl = document.getElementById('availableCount');
@@ -354,7 +376,8 @@ function quickBid(increment) {
     const input = document.getElementById('bidAmount');
     if (!input) return;
     const currentMin = parseInt(input.min) || 0;
-    input.value = currentMin > 0 ? currentMin + increment : increment;
+    const effectiveIncrement = Math.max(increment, currentBidIncrement || increment);
+    input.value = currentMin > 0 ? currentMin + effectiveIncrement : effectiveIncrement;
 }
 
 async function fetchAuctionState() {

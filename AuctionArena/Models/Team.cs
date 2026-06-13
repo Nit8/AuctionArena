@@ -9,5 +9,6 @@
         public string? CaptainName { get; set; }
         public int RemainingPoints { get; set; }
         public int PlayerCount { get; set; }
+        public bool IsSuspended { get; set; }
     }
 }
