@@ -34,9 +34,10 @@ builder.Services.AddScoped<IAuctionStateRepository, AuctionStateRepository>();
 builder.Services.AddScoped<IAuctionService, AuctionService>();
 builder.Services.AddScoped<INotificationService, SignalRNotificationService>();
 
-// Configure to listen on all network interfaces
+// Configure to listen on all network interfaces (port configurable via ASPNETCORE_URLS env var / web.config)
 var urls = builder.Configuration["ASPNETCORE_URLS"] ?? "http://0.0.0.0:6869";
 builder.WebHost.UseUrls(urls);
+var port = new Uri(urls.Split(';')[0]).Port;
 
 // Add structured logging
 builder.Logging.AddConsole();
@@ -78,7 +79,7 @@ Console.WriteLine("==============================================");
 Console.WriteLine("Access the application from any device on your network:");
 foreach (var addr in addresses)
 {
-    Console.WriteLine($"  http://{addr}:6869");
+    Console.WriteLine($"  http://{addr}:{port}");
 }
 Console.WriteLine("==============================================\n");
 
