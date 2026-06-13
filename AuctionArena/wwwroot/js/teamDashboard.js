@@ -20,6 +20,7 @@ async function initTeamDashboard(lobbyId, teamId, initialPlayerId = 0) {
     conn.on('pauseUpdate', handlePauseUpdate);
     conn.on('teamUpdate', handleTeamUpdate);
     conn.on('auctionComplete', handleAuctionComplete);
+    conn.on('availablePlayersUpdate', handleAvailablePlayersUpdate);
     conn.on('reconnected', () => { fetchAuctionState(); });
 
     await conn.connect(lobbyId);
@@ -70,6 +71,12 @@ function handlePlayerUpdate(data) {
     if (data.playerId) {
         currentPlayerId = data.playerId;
         justSold = false;
+
+        // Remove the newly-auctioned player from the Available Players list
+        const availItem = document.querySelector(`#availablePlayersList [data-player-id="${data.playerId}"]`);
+        if (availItem) availItem.remove();
+        const availCount = document.getElementById('availableCount');
+        if (availCount) availCount.textContent = Math.max(0, parseInt(availCount.textContent) - 1);
         panel.innerHTML = `
             <div class="text-center p-4">
                 <h2 style="font-weight:800;margin-bottom:0.5rem">${escapeHtml(data.playerName)}</h2>
@@ -210,6 +217,12 @@ async function handlePlayerSold(data) {
             playerCountEls[1].textContent = `${parseInt(parts[0]) + 1} / ${parts[1]}`;
         }
     }
+
+    // Remove the sold player from the local Available Players list (server will also push availablePlayersUpdate)
+    const availItem = document.querySelector(`#availablePlayersList [data-player-id="${data.playerId}"]`);
+    if (availItem) availItem.remove();
+    const availCount = document.getElementById('availableCount');
+    if (availCount) availCount.textContent = Math.max(0, parseInt(availCount.textContent) - 1);
 }
 
 function handlePauseUpdate(isPaused) {
@@ -233,6 +246,41 @@ function handleTeamUpdate(data) {
 
 function handleAuctionComplete(message) {
     ToastManager.show(message, 'success', 8000);
+}
+
+function renderAvailablePlayers(players) {
+    const list = document.getElementById('availablePlayersList');
+    const countEl = document.getElementById('availableCount');
+    if (!list) return;
+
+    // Exclude any player that is currently in auction on this client
+    const filtered = (players || []).filter(p => p.playerId !== currentPlayerId);
+
+    list.innerHTML = '';
+    if (!filtered.length) {
+        list.innerHTML = '<p class="text-center text-muted p-3 mb-0">No available players</p>';
+    } else {
+        for (const p of filtered) {
+            const item = document.createElement('div');
+            item.className = 'player-card-auction';
+            item.setAttribute('data-player-id', p.playerId);
+            item.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <strong style="font-size:0.9rem">${escapeHtml(p.playerName)}</strong><br>
+                        <small style="color:var(--gray-500)">${escapeHtml(p.position || '')}</small>
+                    </div>
+                </div>
+            `;
+            list.appendChild(item);
+        }
+    }
+    if (countEl) countEl.textContent = filtered.length;
+}
+
+function handleAvailablePlayersUpdate(data) {
+    if (!data || !data.players) return;
+    renderAvailablePlayers(data.players);
 }
 
 function addBidToHistory(teamName, bidAmount) {
@@ -315,6 +363,9 @@ async function fetchAuctionState() {
         const state = await response.json();
         if (state.currentPlayer) {
             currentPlayerId = state.currentPlayer.playerId;
+        }
+        if (state.availablePlayers) {
+            renderAvailablePlayers(state.availablePlayers);
         }
     } catch (err) {
         console.error('Failed to fetch auction state:', err);

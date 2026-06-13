@@ -210,6 +210,10 @@ namespace AuctionArena.Services
 
             await _notificationService.NotifyPlayerUpdate(lobbyId, player.PlayerId, player.PlayerName, player.Position);
 
+            // Notify all clients of the updated available players list (excludes the now-in-auction player)
+            var updatedAvailable = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
+            await _notificationService.NotifyAvailablePlayersUpdate(lobbyId, updatedAvailable);
+
             _logger.LogInformation("Auction started for player {PlayerName} (ID:{PlayerId}) in lobby {LobbyId}", player.PlayerName, playerId, lobbyId);
             return (true, null);
         }
@@ -337,6 +341,10 @@ namespace AuctionArena.Services
         {
             await _auctionStateRepo.ClearCurrentAuctionAsync(lobbyId);
             await _notificationService.NotifyPlayerUpdate(lobbyId, null, null, null);
+
+            // Notify all clients of the updated available players list (the skipped player goes back to available)
+            var updatedAvailable = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
+            await _notificationService.NotifyAvailablePlayersUpdate(lobbyId, updatedAvailable);
 
             _logger.LogInformation("Player skipped in lobby {LobbyId}", lobbyId);
             return (true, null);
@@ -751,6 +759,11 @@ namespace AuctionArena.Services
                 && team?.PlayerCount < (lobby?.MaxPlayersPerTeam ?? 0)
                 && auctionState?.CurrentHighestBidderTeamId != teamId;
 
+            var allPlayers = await _playerRepo.GetPlayersByLobbyAsync(lobbyId);
+            var availablePlayers = allPlayers
+                .Where(p => !p.IsAuctioned && p.PlayerId != (currentPlayer?.PlayerId ?? -1))
+                .ToList();
+
             return new TeamDashboardViewModel
             {
                 Team = team ?? new(),
@@ -764,7 +777,8 @@ namespace AuctionArena.Services
                 IsPaused = lobby?.IsPaused ?? false,
                 MaxPlayersPerTeam = lobby?.MaxPlayersPerTeam ?? 0,
                 CurrentPlayerCount = team?.PlayerCount ?? 0,
-                RecentBids = recentBids
+                RecentBids = recentBids,
+                AvailablePlayers = availablePlayers
             };
         }
 

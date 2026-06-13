@@ -14,5 +14,6 @@ namespace AuctionArena.Models
         public int MaxPlayersPerTeam { get; set; }
         public int CurrentPlayerCount { get; set; }
         public List<Bid> RecentBids { get; set; } = new();
+        public List<Player> AvailablePlayers { get; set; } = new();
     }
 }

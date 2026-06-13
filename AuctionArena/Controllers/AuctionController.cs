@@ -506,6 +506,12 @@ namespace AuctionArena.Controllers
                     t.TeamName,
                     t.RemainingPoints,
                     t.PlayerCount
+                }),
+                availablePlayers = viewModel.RemainingPlayers.Select(p => new
+                {
+                    playerId = p.PlayerId,
+                    playerName = p.PlayerName,
+                    position = p.Position
                 })
             });
         }
