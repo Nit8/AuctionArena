@@ -19,7 +19,10 @@
                 </svg>
                 Auction Arena
             </a>
-            @if (Context.Session.TryGetValue("LobbyId", out _) && !(ViewContext.RouteData.Values["action"]?.ToString() == "Index" && ViewContext.RouteData.Values["controller"]?.ToString() == "Auction"))
+            @{
+                var showLobby = new[] { "HostDashboard", "TeamDashboard", "ViewerDashboard" }.Contains(ViewContext.RouteData.Values["action"]?.ToString());
+            }
+            @if (Context.Session.TryGetValue("LobbyId", out _) && showLobby)
             {
                 <span class="text-white-50" style="font-size:0.8rem">
                     Lobby: <strong class="text-white">@Context.Session.GetString("LobbyId")</strong>
