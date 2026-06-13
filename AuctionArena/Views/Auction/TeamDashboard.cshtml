@@ -3,7 +3,7 @@
     ViewData["Title"] = "Team Dashboard";
 }
 
-<div class="container">
+<div class="container-fluid">
     @Html.AntiForgeryToken()
 
     <!-- Header -->
@@ -46,106 +46,114 @@
         </div>
     </div>
 
-    <!-- Current Player Auction -->
-    <div class="card-auction mb-3">
-        <div class="card-header-auction card-header-primary">
-            <span style="font-weight:700">Current Player</span>
-            <div id="countdownTimer" class="countdown-timer"></div>
-        </div>
-        <div class="card-body-auction" id="currentPlayerPanel">
-            @if (Model.CurrentPlayer != null)
-            {
-                <div class="text-center p-4">
-                    <h2 style="font-weight:800;margin-bottom:0.5rem">@Model.CurrentPlayer.PlayerName</h2>
-                    <h5 style="color:var(--gray-500);margin-bottom:1.5rem">@Model.CurrentPlayer.Position</h5>
-                    <div class="bid-display" id="currentBidDisplay">
-                        @if (Model.CurrentHighestBid.HasValue)
-                        {
-                            <div class="bid-amount">@Model.CurrentHighestBid</div>
-                            <div class="bid-team">by @Model.CurrentHighestBidderName</div>
-                        }
-                        else
-                        {
-                            <h4 style="color:var(--gray-400);font-weight:600">No bids yet - Place the first bid!</h4>
-                        }
-                    </div>
-                    <div style="max-width:500px;margin:1.5rem auto 0">
-                        <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
-                            <input type="number" class="form-control-auction form-control-lg-auction" id="bidAmount"
-                                   placeholder="Enter bid amount"
-                                   min="@(Model.CurrentHighestBid.HasValue ? Model.CurrentHighestBid.Value + 1 : 1)"
-                                   max="@Model.RemainingPoints" style="flex:1">
-                            <button class="btn-auction btn-success-auction btn-lg-auction" onclick="placeBid()" id="bidButton"
-                                @(!Model.CanBid || Model.IsPaused ? "disabled" : "")>
-                                Bid
-                            </button>
-                        </div>
-                        <div class="quick-bid-group">
-                            <button class="quick-bid-btn" onclick="quickBid(50)">+50</button>
-                            <button class="quick-bid-btn" onclick="quickBid(100)">+100</button>
-                            <button class="quick-bid-btn" onclick="quickBid(200)">+200</button>
-                            <button class="quick-bid-btn" onclick="quickBid(500)">+500</button>
-                        </div>
-                    </div>
-                    @if (!Model.CanBid && !Model.IsPaused)
+    <div class="row g-3">
+        <!-- Left Pane -->
+        <div class="col-lg-8">
+            <!-- Current Player Auction -->
+            <div class="card-auction mb-3">
+                <div class="card-header-auction card-header-primary">
+                    <span style="font-weight:700">Current Player</span>
+                    <div id="countdownTimer" class="countdown-timer"></div>
+                </div>
+                <div class="card-body-auction" id="currentPlayerPanel">
+                    @if (Model.CurrentPlayer != null)
                     {
-                        <div class="field-error mt-2">Insufficient points to bid or team is at max capacity</div>
-                    }
-                    <div id="bidError" class="mt-2" style="display:none"></div>
-                </div>
-            }
-            else
-            {
-                <div class="text-center p-5">
-                    <svg style="width:4rem;height:4rem;color:var(--gray-400);margin-bottom:1rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <h4 style="color:var(--gray-400)">Waiting for next player...</h4>
-                    <p style="color:var(--gray-400)">The host will start the auction shortly</p>
-                </div>
-            }
-        </div>
-    </div>
-
-    <!-- Available Players -->
-    <div class="card-auction mb-3">
-        <div class="card-header-auction card-header-success">
-            <span style="font-weight:700">Available Players</span>
-            <span class="badge-auction badge-primary" id="availableCount">@Model.AvailablePlayers.Count</span>
-        </div>
-        <div class="card-body-auction p-2 scroll-list" id="availablePlayersList" style="max-height:300px">
-            @foreach (var player in Model.AvailablePlayers)
-            {
-                <div class="player-card-auction" data-player-id="@player.PlayerId">
-                    <div style="display:flex;justify-content:space-between;align-items:center">
-                        <div>
-                            <strong style="font-size:0.9rem">@player.PlayerName</strong><br>
-                            <small style="color:var(--gray-500)">@player.Position</small>
+                        <div class="text-center p-4">
+                            <h2 style="font-weight:800;margin-bottom:0.5rem">@Model.CurrentPlayer.PlayerName</h2>
+                            <h5 style="color:var(--gray-500);margin-bottom:1.5rem">@Model.CurrentPlayer.Position</h5>
+                            <div class="bid-display" id="currentBidDisplay">
+                                @if (Model.CurrentHighestBid.HasValue)
+                                {
+                                    <div class="bid-amount">@Model.CurrentHighestBid</div>
+                                    <div class="bid-team">by @Model.CurrentHighestBidderName</div>
+                                }
+                                else
+                                {
+                                    <h4 style="color:var(--gray-400);font-weight:600">No bids yet - Place the first bid!</h4>
+                                }
+                            </div>
+                            <div style="max-width:500px;margin:1.5rem auto 0">
+                                <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+                                    <input type="number" class="form-control-auction form-control-lg-auction" id="bidAmount"
+                                           placeholder="Enter bid amount"
+                                           min="@(Model.CurrentHighestBid.HasValue ? Model.CurrentHighestBid.Value + 1 : 1)"
+                                           max="@Model.RemainingPoints" style="flex:1">
+                                    <button class="btn-auction btn-success-auction btn-lg-auction" onclick="placeBid()" id="bidButton"
+                                        @(!Model.CanBid || Model.IsPaused ? "disabled" : "")>
+                                        Bid
+                                    </button>
+                                </div>
+                                <div class="quick-bid-group">
+                                    <button class="quick-bid-btn" onclick="quickBid(50)">+50</button>
+                                    <button class="quick-bid-btn" onclick="quickBid(100)">+100</button>
+                                    <button class="quick-bid-btn" onclick="quickBid(200)">+200</button>
+                                    <button class="quick-bid-btn" onclick="quickBid(500)">+500</button>
+                                </div>
+                            </div>
+                            @if (!Model.CanBid && !Model.IsPaused)
+                            {
+                                <div class="field-error mt-2">Insufficient points to bid or team is at max capacity</div>
+                            }
+                            <div id="bidError" class="mt-2" style="display:none"></div>
                         </div>
+                    }
+                    else
+                    {
+                        <div class="text-center p-5">
+                            <svg style="width:4rem;height:4rem;color:var(--gray-400);margin-bottom:1rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h4 style="color:var(--gray-400)">Waiting for next player...</h4>
+                            <p style="color:var(--gray-400)">The host will start the auction shortly</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Bid History -->
+            <div class="card-auction mb-3">
+                <div class="card-header-auction">
+                    <span style="font-weight:700">Recent Bids</span>
+                </div>
+                <div class="card-body-auction p-2">
+                    <div id="bidHistoryList" class="scroll-list" style="max-height:200px">
+                        @foreach (var bid in Model.RecentBids.OrderByDescending(b => b.BidAmount).Take(10))
+                        {
+                            <div class="bid-history-item @((Model.CurrentHighestBidderName == Model.AllTeams.FirstOrDefault(t => t.TeamId == bid.TeamId)?.TeamName) ? "highest" : "")">
+                                <span style="font-weight:600">@Model.AllTeams.FirstOrDefault(t => t.TeamId == bid.TeamId)?.TeamName</span>
+                                <span class="badge-auction badge-primary">@bid.BidAmount pts</span>
+                            </div>
+                        }
                     </div>
                 </div>
-            }
-            @if (!Model.AvailablePlayers.Any())
-            {
-                <p class="text-center text-muted p-3 mb-0">No available players</p>
-            }
+            </div>
         </div>
-    </div>
 
-    <!-- Bid History -->
-    <div class="card-auction mb-3">
-        <div class="card-header-auction">
-            <span style="font-weight:700">Recent Bids</span>
-        </div>
-        <div class="card-body-auction p-2">
-            <div id="bidHistoryList" class="scroll-list" style="max-height:150px">
-                @foreach (var bid in Model.RecentBids.OrderByDescending(b => b.BidAmount).Take(10))
-                {
-                    <div class="bid-history-item @((Model.CurrentHighestBidderName == Model.AllTeams.FirstOrDefault(t => t.TeamId == bid.TeamId)?.TeamName) ? "highest" : "")">
-                        <span style="font-weight:600">@Model.AllTeams.FirstOrDefault(t => t.TeamId == bid.TeamId)?.TeamName</span>
-                        <span class="badge-auction badge-primary">@bid.BidAmount pts</span>
-                    </div>
-                }
+        <!-- Right Pane -->
+        <div class="col-lg-4">
+            <!-- Available Players -->
+            <div class="card-auction mb-3">
+                <div class="card-header-auction card-header-success">
+                    <span style="font-weight:700">Available Players</span>
+                    <span class="badge-auction badge-primary" id="availableCount">@Model.AvailablePlayers.Count</span>
+                </div>
+                <div class="card-body-auction p-2 scroll-list" id="availablePlayersList" style="max-height:500px">
+                    @foreach (var player in Model.AvailablePlayers)
+                    {
+                        <div class="player-card-auction" data-player-id="@player.PlayerId">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div>
+                                    <strong style="font-size:0.9rem">@player.PlayerName</strong><br>
+                                    <small style="color:var(--gray-500)">@player.Position</small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    @if (!Model.AvailablePlayers.Any())
+                    {
+                        <p class="text-center text-muted p-3 mb-0">No available players</p>
+                    }
+                </div>
             </div>
         </div>
     </div>
