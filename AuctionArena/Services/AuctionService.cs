@@ -153,35 +153,36 @@ namespace AuctionArena.Services
             return (team, null);
         }
 
-//        public async Task<(string? LobbyId, string? Error)> ValidateHostResumeAsync(ResumeLobbyViewModel model)
-//        {
-//            var lobbyId = model.LobbyId.ToUpperInvariant().Trim();
-//            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
-//            if (lobby == null)
-//                return (null, "Lobby not found. Check the lobby code and try again.");
+        public async Task<(string LobbyId, string? Error)> ValidateResumeLobbyAsync(ResumeLobbyViewModel model)
+        {
+            var lobbyId = model.LobbyId.ToUpperInvariant().Trim();
+            var lobby = await _lobbyRepo.GetLobbyAsync(lobbyId);
+            if (lobby == null)
+                return (string.Empty, "Lobby not found. Check the lobby code and try again.");
 
-//            // Verify host name matches
-//            if (!string.Equals(lobby.HostName.Trim(), model.HostName.Trim(), StringComparison.OrdinalIgnoreCase))
-//                return (null, "Host name does not match the lobby's host.");
+            // Verify password — lobby must have a password set for host resume
+            if (!string.IsNullOrEmpty(lobby.PasswordHash) && !string.IsNullOrEmpty(lobby.PasswordSalt))
+            {
+                if (string.IsNullOrEmpty(model.Password) || !VerifyPassword(model.Password, lobby.PasswordHash, lobby.PasswordSalt))
+                    return (string.Empty, "Incorrect password");
+            }
+            else if (!string.IsNullOrEmpty(lobby.Password))
+            {
+                // Legacy plaintext support
+#pragma warning disable CS0618
+                if (string.IsNullOrEmpty(model.Password) || lobby.Password != model.Password)
+                    return (string.Empty, "Incorrect password");
+#pragma warning restore CS0618
+            }
+            else
+            {
+                // No password set on lobby — cannot resume (security requirement)
+                return (string.Empty, "This lobby does not have a password set. Only password-protected lobbies can be resumed.");
+            }
 
-//            // Verify password if lobby has one
-//            if (!string.IsNullOrEmpty(lobby.PasswordHash) && !string.IsNullOrEmpty(lobby.PasswordSalt))
-//            {
-//                if (string.IsNullOrEmpty(model.Password) || !VerifyPassword(model.Password, lobby.PasswordHash, lobby.PasswordSalt))
-//                    return (null, "Incorrect password");
-//            }
-//            else if (!string.IsNullOrEmpty(lobby.Password))
-//            {
-//                // Legacy plaintext support
-//#pragma warning disable CS0618
-//                if (lobby.Password != model.Password)
-//                    return (null, "Incorrect password");
-//#pragma warning restore CS0618
-//            }
-
-//            _logger.LogInformation("Host {HostName} resumed lobby {LobbyId}", model.HostName, lobbyId);
-//            return (lobbyId, null);
-//        }
+            _logger.LogInformation("Host resumed lobby {LobbyId}", lobbyId);
+            return (lobbyId, null);
+        }
 
         // ─── Auction Flow (with transaction support for concurrency) ───
         public async Task<(bool Success, string? Error)> StartPlayerAuctionAsync(string lobbyId, int playerId)

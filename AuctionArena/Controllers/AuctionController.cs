@@ -52,6 +52,37 @@ namespace AuctionArena.Controllers
             return RedirectToAction("HostDashboard", new { lobbyId });
         }
 
+        // ─── Resume Lobby ───
+        public IActionResult ResumeLobby()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResumeLobby(ResumeLobbyViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            model.LobbyId = model.LobbyId.ToUpperInvariant().Trim();
+
+            var (lobbyId, error) = await _auctionService.ValidateResumeLobbyAsync(model);
+            if (error != null)
+            {
+                ModelState.AddModelError("", error);
+                return View(model);
+            }
+
+            // Store host auth info in session
+            HttpContext.Session.SetString("LobbyId", lobbyId);
+            HttpContext.Session.SetString("Role", "Host");
+
+            return RedirectToAction("HostDashboard", new { lobbyId });
+        }
+
         // ─── Join Lobby ───
         public IActionResult JoinLobby()
         {

@@ -8,6 +8,7 @@ namespace AuctionArena.Interfaces
         Task<(string LobbyId, string? Error)> CreateLobbyAsync(CreateLobbyViewModel model);
         Task<(Team? Team, string? Error)> ValidateJoinLobbyAsync(JoinLobbyViewModel model);
         Task<(bool Success, string? Error)> ValidateViewerAccessAsync(string lobbyId);
+        Task<(string LobbyId, string? Error)> ValidateResumeLobbyAsync(ResumeLobbyViewModel model);
 
         // Auction flow
         Task<(bool Success, string? Error)> StartPlayerAuctionAsync(string lobbyId, int playerId);
