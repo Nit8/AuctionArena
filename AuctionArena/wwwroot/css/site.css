@@ -704,6 +704,19 @@ body {
     line-height: 1.1;
 }
 
+.viewer-hero-minbid {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #c7d2fe;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    padding: 0.35rem 0.8rem;
+    border-radius: var(--radius-sm);
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+}
+
 .viewer-hero-bid {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.1);

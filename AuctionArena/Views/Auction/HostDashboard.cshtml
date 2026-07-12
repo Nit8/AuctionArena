@@ -124,6 +124,12 @@
                         <div class="text-center p-4">
                             <h1 style="font-size:2.5rem;font-weight:800;margin-bottom:0.5rem">@Model.CurrentPlayer.PlayerName</h1>
                             <h4 style="color:var(--gray-500);margin-bottom:1.5rem">@Model.CurrentPlayer.Position</h4>
+                            @if (Model.MinimumBid.HasValue && Model.MinimumBid.Value > 0)
+                            {
+                                <div class="badge-auction badge-info" style="margin-bottom:1rem;padding:0.4rem 0.8rem">
+                                    Minimum Bid: @Model.MinimumBid.Value pts
+                                </div>
+                            }
                             <div class="bid-display" id="bidDisplay">
                                 @if (Model.CurrentHighestBid.HasValue)
                                 {
@@ -230,14 +236,22 @@
                     @foreach (var player in Model.RemainingPlayers)
                     {
                         <div class="player-card-auction" data-player-id="@player.PlayerId">
-                            <div style="display:flex;justify-content:space-between;align-items:center">
-                                <div>
-                                    <strong style="font-size:0.9rem">@player.PlayerName</strong><br>
-                                    <small style="color:var(--gray-500)">@player.Position</small>
+                            <div style="display:flex;flex-direction:column;gap:0.4rem">
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <div>
+                                        <strong style="font-size:0.9rem">@player.PlayerName</strong><br>
+                                        <small style="color:var(--gray-500)">@player.Position</small>
+                                    </div>
                                 </div>
-                                <button class="btn-auction btn-primary-auction btn-sm-auction" onclick="startAuction(@player.PlayerId)">
-                                    Start
-                                </button>
+                                <div style="display:flex;gap:0.4rem;align-items:center">
+                                    <label style="font-size:0.7rem;color:var(--gray-500);white-space:nowrap">Min bid:</label>
+                                    <input type="number" class="form-control-auction form-control-sm-auction min-bid-input"
+                                           placeholder="0" min="0" style="flex:1;padding:0.25rem 0.5rem;font-size:0.8rem"
+                                           data-player-id="@player.PlayerId" />
+                                    <button class="btn-auction btn-primary-auction btn-sm-auction start-auction-btn" onclick="startAuction(@player.PlayerId)">
+                                        Start
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     }
@@ -288,6 +302,13 @@
 <script src="~/js/hostDashboard.js"></script>
 <script>
     const lobbyId = '@Model.Lobby.LobbyId';
-    initHostDashboard(lobbyId);
+    // If a player is already in auction on page load, lock the Start buttons immediately
+    // (before SignalR reconnect confirms state)
+    initHostDashboard(lobbyId).then(() => {
+        @if (Model.CurrentPlayer != null)
+        {
+            <text>lockAvailablePlayers(true);</text>
+        }
+    });
 </script>
 }

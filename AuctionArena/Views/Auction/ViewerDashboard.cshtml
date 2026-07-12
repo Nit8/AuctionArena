@@ -59,6 +59,10 @@
                     <div class="viewer-hero-content">
                         <div class="viewer-hero-position">@Model.CurrentPlayer.Position</div>
                         <div class="viewer-hero-name">@Model.CurrentPlayer.PlayerName</div>
+                        @if (Model.MinimumBid.HasValue && Model.MinimumBid.Value > 0)
+                        {
+                            <div class="viewer-hero-minbid">Min bid: @Model.MinimumBid.Value pts</div>
+                        }
                         <div class="viewer-hero-bid" id="bidDisplay">
                             @if (Model.CurrentHighestBid.HasValue)
                             {

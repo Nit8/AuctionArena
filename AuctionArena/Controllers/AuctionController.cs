@@ -364,9 +364,9 @@ namespace AuctionArena.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> StartPlayerAuction(string lobbyId, int playerId)
+        public async Task<IActionResult> StartPlayerAuction(string lobbyId, int playerId, int minimumBid = 0)
         {
-            var (success, error) = await _auctionService.StartPlayerAuctionAsync(lobbyId, playerId);
+            var (success, error) = await _auctionService.StartPlayerAuctionAsync(lobbyId, playerId, minimumBid);
             if (!success)
                 return Json(ApiResponse.Fail(error ?? "Failed to start auction"));
 
@@ -552,6 +552,7 @@ namespace AuctionArena.Controllers
                 } : null,
                 currentHighestBid = viewModel.CurrentHighestBid,
                 currentHighestBidder = viewModel.CurrentHighestBidder?.TeamName,
+                minimumBid = viewModel.MinimumBid,
                 isPaused = viewModel.IsPaused,
                 teams = viewModel.Teams.Select(t => new
                 {
@@ -584,6 +585,7 @@ namespace AuctionArena.Controllers
                 } : null,
                 currentHighestBid = viewModel.CurrentHighestBid,
                 currentHighestBidder = viewModel.CurrentHighestBidder?.TeamName,
+                minimumBid = viewModel.MinimumBid,
                 isPaused = viewModel.IsPaused,
                 isActive = viewModel.IsActive,
                 timerDuration = viewModel.TimerDuration,

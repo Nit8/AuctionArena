@@ -8,6 +8,7 @@ namespace AuctionArena.Models
         public Player? CurrentPlayer { get; set; }
         public int? CurrentHighestBid { get; set; }
         public string? CurrentHighestBidderName { get; set; }
+        public int? MinimumBid { get; set; } // Host-defined minimum starting bid for the current player
         public int RemainingPoints { get; set; }
         public bool CanBid { get; set; }
         public bool IsPaused { get; set; }

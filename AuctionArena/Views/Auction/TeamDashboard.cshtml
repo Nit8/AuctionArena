@@ -58,6 +58,12 @@
                 <div class="card-body-auction" id="currentPlayerPanel">
                     @if (Model.CurrentPlayer != null)
                     {
+                        @if (Model.MinimumBid.HasValue && Model.MinimumBid.Value > 0)
+                        {
+                            <div class="text-center" style="margin-top:1rem">
+                                <div class="badge-auction badge-info" style="padding:0.4rem 0.75rem">Minimum bid: @Model.MinimumBid.Value pts</div>
+                            </div>
+                        }
                         <div class="text-center p-4">
                             <h2 style="font-weight:800;margin-bottom:0.5rem">@Model.CurrentPlayer.PlayerName</h2>
                             <h5 style="color:var(--gray-500);margin-bottom:1.5rem">@Model.CurrentPlayer.Position</h5>
@@ -73,10 +79,10 @@
                                 }
                             </div>
                             <div style="max-width:500px;margin:1.5rem auto 0">
-                                <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+                                <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">
                                     <input type="number" class="form-control-auction form-control-lg-auction" id="bidAmount"
                                            placeholder="Enter bid amount"
-                                           min="@(Model.CurrentHighestBid.HasValue ? Model.CurrentHighestBid.Value + 1 : 1)"
+                                           min="@(Model.CurrentHighestBid.HasValue ? Model.CurrentHighestBid.Value + 1 : (Model.MinimumBid.HasValue && Model.MinimumBid.Value > 0 ? Model.MinimumBid.Value : 1))"
                                            max="@Model.RemainingPoints" style="flex:1">
                                     <button class="btn-auction btn-success-auction btn-lg-auction" onclick="placeBid()" id="bidButton"
                                         @(!Model.CanBid || Model.IsPaused ? "disabled" : "")>
@@ -84,10 +90,21 @@
                                     </button>
                                 </div>
                                 <div class="quick-bid-group">
-                                    <button class="quick-bid-btn" onclick="quickBid(50)">+50</button>
-                                    <button class="quick-bid-btn" onclick="quickBid(100)">+100</button>
-                                    <button class="quick-bid-btn" onclick="quickBid(200)">+200</button>
-                                    <button class="quick-bid-btn" onclick="quickBid(500)">+500</button>
+                                    <button class="quick-bid-btn" onclick="quickBid(50)" title="Bid current highest + 50">+50</button>
+                                    <button class="quick-bid-btn" onclick="quickBid(100)" title="Bid current highest + 100">+100</button>
+                                    <button class="quick-bid-btn" onclick="quickBid(200)" title="Bid current highest + 200">+200</button>
+                                    <button class="quick-bid-btn" onclick="quickBid(500)" title="Bid current highest + 500">+500</button>
+                                </div>
+                                <div class="custom-bid-row" style="display:flex;gap:0.5rem;margin-top:0.5rem;align-items:center">
+                                    <label for="customIncrementInput" style="font-size:0.75rem;color:var(--gray-500);white-space:nowrap">My +</label>
+                                    <input type="number" id="customIncrementInput" class="form-control-auction"
+                                           placeholder="e.g. 75" min="0" style="flex:1;padding:0.35rem 0.6rem;font-size:0.85rem"
+                                           onchange="onCustomIncrementChange(this.value)" />
+                                    <button class="quick-bid-btn" id="customBidBtn"
+                                            onclick="quickBid(customIncrement)"
+                                            title="Use my saved increment">
+                                        +My Inc
+                                    </button>
                                 </div>
                             </div>
                             @if (!Model.CanBid && !Model.IsPaused)

@@ -183,8 +183,14 @@ namespace AuctionArena.Services
         }
 
         // ─── Auction Flow (with transaction support for concurrency) ───
-        public async Task<(bool Success, string? Error)> StartPlayerAuctionAsync(string lobbyId, int playerId)
+        public async Task<(bool Success, string? Error)> StartPlayerAuctionAsync(string lobbyId, int playerId, int minimumBid = 0)
         {
+            // Validate minimum bid range
+            if (minimumBid < 0)
+                return (false, "Minimum bid cannot be negative");
+            if (minimumBid > 1_000_000)
+                return (false, "Minimum bid cannot exceed 1,000,000");
+
             var player = await _playerRepo.GetPlayerAsync(playerId);
             if (player == null || player.IsAuctioned)
                 return (false, "Player not available for auction");
@@ -192,8 +198,10 @@ namespace AuctionArena.Services
             if (player.LobbyId != lobbyId)
                 return (false, "Player does not belong to this lobby");
 
-            // Read existing state to get the correct Version for optimistic concurrency
+            // Read existing state to check for in-progress auction (LOCK: only one player in auction at a time)
             var existingState = await _auctionStateRepo.GetAuctionStateAsync(lobbyId);
+            if (existingState?.CurrentPlayerId != null)
+                return (false, "Another player is already in auction. Confirm the sale or skip that player first.");
 
             var auctionState = new AuctionState
             {
@@ -202,18 +210,20 @@ namespace AuctionArena.Services
                 CurrentHighestBid = null,
                 CurrentHighestBidderTeamId = null,
                 AuctionStartTime = DateTime.UtcNow,
-                Version = existingState?.Version ?? 0
+                Version = existingState?.Version ?? 0,
+                MinimumBid = minimumBid > 0 ? minimumBid : null
             };
 
             await _auctionStateRepo.UpdateAuctionStateAsync(auctionState);
 
-            await _notificationService.NotifyPlayerUpdate(lobbyId, player.PlayerId, player.PlayerName, player.Position);
+            await _notificationService.NotifyPlayerUpdate(lobbyId, player.PlayerId, player.PlayerName, player.Position, auctionState.MinimumBid);
 
             // Notify all clients of the updated available players list (excludes the now-in-auction player)
             var updatedAvailable = await _playerRepo.GetUnsoldPlayersAsync(lobbyId);
             await _notificationService.NotifyAvailablePlayersUpdate(lobbyId, updatedAvailable);
 
-            _logger.LogInformation("Auction started for player {PlayerName} (ID:{PlayerId}) in lobby {LobbyId}", player.PlayerName, playerId, lobbyId);
+            _logger.LogInformation("Auction started for player {PlayerName} (ID:{PlayerId}) in lobby {LobbyId} (min bid: {MinimumBid})",
+                player.PlayerName, playerId, lobbyId, minimumBid);
             return (true, null);
         }
 
@@ -238,6 +248,10 @@ namespace AuctionArena.Services
 
                 if (auctionState.CurrentHighestBid != null && bidAmount <= auctionState.CurrentHighestBid)
                     return (false, "Bid must be higher than current bid");
+
+                // Enforce host-defined minimum bid (only when there is no current bid yet — i.e. opening bid)
+                if (auctionState.CurrentHighestBid == null && auctionState.MinimumBid.HasValue && bidAmount < auctionState.MinimumBid.Value)
+                    return (false, $"Bid must be at least the minimum bid of {auctionState.MinimumBid.Value}");
 
                 if (bidAmount > team.RemainingPoints)
                     return (false, "Insufficient points");
@@ -774,6 +788,7 @@ namespace AuctionArena.Services
                 CurrentPlayer = currentPlayer,
                 CurrentHighestBid = auctionState?.CurrentHighestBid,
                 CurrentHighestBidder = currentBidder,
+                MinimumBid = auctionState?.MinimumBid,
                 RemainingPlayers = players.Where(p => !p.IsAuctioned && p.PlayerId != (currentPlayer?.PlayerId ?? -1)).ToList(),
                 SoldPlayers = players.Where(p => p.IsAuctioned).ToList(),
                 CurrentBids = currentBids,
@@ -824,6 +839,7 @@ namespace AuctionArena.Services
                 CurrentPlayer = currentPlayer,
                 CurrentHighestBid = auctionState?.CurrentHighestBid,
                 CurrentHighestBidderName = currentBidderName,
+                MinimumBid = auctionState?.MinimumBid,
                 RemainingPoints = team?.RemainingPoints ?? 0,
                 CanBid = canBid,
                 IsPaused = lobby?.IsPaused ?? false,
@@ -994,6 +1010,7 @@ namespace AuctionArena.Services
                 CurrentPlayer = currentPlayer,
                 CurrentHighestBid = auctionState?.CurrentHighestBid,
                 CurrentHighestBidder = currentBidder,
+                MinimumBid = auctionState?.MinimumBid,
                 RemainingPlayers = players.Where(p => !p.IsAuctioned && p.PlayerId != (currentPlayer?.PlayerId ?? -1)).ToList(),
                 SoldPlayers = soldPlayers,
                 RecentBids = recentBids,

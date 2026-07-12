@@ -343,6 +343,7 @@ namespace AuctionArena.Repositories
                         CurrentHighestBid = @CurrentHighestBid, 
                         CurrentHighestBidderTeamId = @CurrentHighestBidderTeamId,
                         AuctionStartTime = @AuctionStartTime,
+                        MinimumBid = @MinimumBid,
                         Version = Version + 1
                     WHERE LobbyId = @LobbyId AND Version = @Version
                 ", state);
@@ -361,6 +362,7 @@ namespace AuctionArena.Repositories
                     CurrentHighestBid = @CurrentHighestBid, 
                     CurrentHighestBidderTeamId = @CurrentHighestBidderTeamId,
                     AuctionStartTime = @AuctionStartTime,
+                    MinimumBid = @MinimumBid,
                     Version = Version + 1
                 WHERE LobbyId = @LobbyId AND Version = @Version
             ", state);
@@ -371,9 +373,9 @@ namespace AuctionArena.Repositories
             {
                 await connection.ExecuteAsync(@"
                     INSERT INTO AuctionState (LobbyId, CurrentPlayerId, CurrentHighestBid, 
-                        CurrentHighestBidderTeamId, AuctionStartTime, Version)
+                        CurrentHighestBidderTeamId, AuctionStartTime, Version, MinimumBid)
                     VALUES (@LobbyId, @CurrentPlayerId, @CurrentHighestBid, 
-                        @CurrentHighestBidderTeamId, @AuctionStartTime, 1)
+                        @CurrentHighestBidderTeamId, @AuctionStartTime, 1, @MinimumBid)
                 ", state);
             }
         }
@@ -387,6 +389,7 @@ namespace AuctionArena.Repositories
                     CurrentHighestBid = NULL, 
                     CurrentHighestBidderTeamId = NULL,
                     AuctionStartTime = NULL,
+                    MinimumBid = NULL,
                     Version = Version + 1
                 WHERE LobbyId = @LobbyId
             ", new { LobbyId = lobbyId });

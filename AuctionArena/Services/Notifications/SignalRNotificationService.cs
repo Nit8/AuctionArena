@@ -28,14 +28,15 @@ namespace AuctionArena.Services.Notifications
             });
         }
 
-        public async Task NotifyPlayerUpdate(string lobbyId, int? playerId, string? playerName, string? position)
+        public async Task NotifyPlayerUpdate(string lobbyId, int? playerId, string? playerName, string? position, int? minimumBid = null)
         {
             _logger.LogInformation("Player update: Lobby {LobbyId}, Player {PlayerName}", lobbyId, playerName ?? "none");
             await _hubContext.Clients.Group(lobbyId).SendAsync("ReceivePlayerUpdate", new
             {
                 playerId,
                 playerName,
-                position
+                position,
+                minimumBid
             });
         }
 

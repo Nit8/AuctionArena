@@ -11,7 +11,7 @@ namespace AuctionArena.Interfaces
         Task<(string LobbyId, string? Error)> ValidateResumeLobbyAsync(ResumeLobbyViewModel model);
 
         // Auction flow
-        Task<(bool Success, string? Error)> StartPlayerAuctionAsync(string lobbyId, int playerId);
+        Task<(bool Success, string? Error)> StartPlayerAuctionAsync(string lobbyId, int playerId, int minimumBid = 0);
         Task<(bool Success, string? Error)> PlaceBidAsync(string lobbyId, int playerId, int teamId, int bidAmount);
         Task<(bool Success, string? Error)> ConfirmSaleAsync(string lobbyId, int playerId);
         Task<(bool Success, string? Error)> SkipPlayerAsync(string lobbyId);

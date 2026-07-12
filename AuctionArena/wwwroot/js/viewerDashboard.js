@@ -87,10 +87,15 @@ function handlePlayerUpdate(data) {
             if (availCount) availCount.textContent = Math.max(0, parseInt(availCount.textContent) - 1);
         }
 
+        const minBidLine = (parseInt(data.minimumBid) > 0)
+            ? `<div class="viewer-hero-minbid">Min bid: ${parseInt(data.minimumBid)} pts</div>`
+            : '';
+
         panel.innerHTML = `
             <div class="viewer-hero-content">
                 <div class="viewer-hero-position">${escapeHtml(data.position)}</div>
                 <div class="viewer-hero-name">${escapeHtml(data.playerName)}</div>
+                ${minBidLine}
                 <div class="viewer-hero-bid" id="bidDisplay">
                     <div class="viewer-bid-waiting">Waiting for bids...</div>
                 </div>

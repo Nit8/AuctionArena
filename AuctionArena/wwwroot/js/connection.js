@@ -90,6 +90,16 @@ class AuctionConnection {
             console.log('🟢 availablePlayersUpdate from hub:', data);
             this.trigger('availablePlayersUpdate', data);
         });
+
+        this.connection.on('ReceiveTeamSuspension', (data) => {
+            console.log('🟢 ReceiveTeamSuspension from hub:', data);
+            this.trigger('teamSuspension', data);
+        });
+
+        this.connection.on('ReceiveBidIncrementUpdate', (bidIncrement) => {
+            console.log('🟢 ReceiveBidIncrementUpdate from hub:', bidIncrement);
+            this.trigger('bidIncrementUpdate', bidIncrement);
+        });
     }
 
     setupReconnectionHandlers() {

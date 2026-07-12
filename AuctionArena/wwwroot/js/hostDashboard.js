@@ -4,6 +4,7 @@ let conn;
 let timer;
 let currentLobbyId;
 let currentPlayerId = 0;
+let currentMinimumBid = 0; // host-set minimum bid for the current player
 let justSold = false; // Flag to delay panel clear after sale
 
 async function initHostDashboard(lobbyId) {
@@ -62,11 +63,17 @@ function handlePlayerUpdate(data) {
 
     if (data.playerId) {
         currentPlayerId = data.playerId;
+        currentMinimumBid = parseInt(data.minimumBid) || 0;
         justSold = false;
+        lockAvailablePlayers(true);
+        const minBidBadge = currentMinimumBid > 0
+            ? `<div class="badge-auction badge-info" style="margin-bottom:1rem;padding:0.4rem 0.8rem">Minimum Bid: ${currentMinimumBid} pts</div>`
+            : '';
         panel.innerHTML = `
             <div class="text-center p-4">
                 <h1 style="font-size:2.5rem;font-weight:800;margin-bottom:0.5rem">${escapeHtml(data.playerName)}</h1>
                 <h4 style="color:var(--gray-500);margin-bottom:1.5rem">${escapeHtml(data.position)}</h4>
+                ${minBidBadge}
                 <div class="bid-display" id="bidDisplay">
                     <h3 style="color:var(--gray-400);font-weight:600">Waiting for bids...</h3>
                 </div>
@@ -83,6 +90,8 @@ function handlePlayerUpdate(data) {
         `;
         timer.start();
     } else {
+        currentMinimumBid = 0;
+        lockAvailablePlayers(false);
         // If we just sold a player, keep the SOLD animation briefly before clearing
         if (justSold) {
             justSold = false;
@@ -112,6 +121,19 @@ function handlePlayerUpdate(data) {
         }
         timer.stop();
     }
+}
+
+// Lock/unlock all Start buttons in the Available Players list while a player is in auction
+function lockAvailablePlayers(locked) {
+    document.querySelectorAll('.start-auction-btn').forEach(btn => {
+        btn.disabled = locked;
+        btn.style.opacity = locked ? '0.5' : '1';
+        btn.style.cursor = locked ? 'not-allowed' : 'pointer';
+    });
+    document.querySelectorAll('.min-bid-input').forEach(input => {
+        input.disabled = locked;
+        input.style.opacity = locked ? '0.5' : '1';
+    });
 }
 
 async function handlePlayerSold(data) {
@@ -217,19 +239,29 @@ function handleSaleRevoked(data) {
         item.className = 'player-card-auction';
         item.setAttribute('data-player-id', data.playerId);
         item.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <div>
-                    <strong style="font-size:0.9rem">${escapeHtml(data.playerName)}</strong><br>
-                    <small style="color:var(--gray-500)"></small>
+            <div style="display:flex;flex-direction:column;gap:0.4rem">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <strong style="font-size:0.9rem">${escapeHtml(data.playerName)}</strong><br>
+                        <small style="color:var(--gray-500)"></small>
+                    </div>
                 </div>
-                <button class="btn-auction btn-primary-auction btn-sm-auction" onclick="startAuction(${data.playerId})">
-                    Start
-                </button>
+                <div style="display:flex;gap:0.4rem;align-items:center">
+                    <label style="font-size:0.7rem;color:var(--gray-500);white-space:nowrap">Min bid:</label>
+                    <input type="number" class="form-control-auction form-control-sm-auction min-bid-input"
+                           placeholder="0" min="0" style="flex:1;padding:0.25rem 0.5rem;font-size:0.8rem"
+                           data-player-id="${data.playerId}" />
+                    <button class="btn-auction btn-primary-auction btn-sm-auction start-auction-btn" onclick="startAuction(${data.playerId})">
+                        Start
+                    </button>
+                </div>
             </div>
         `;
         availList.prepend(item);
         const availCount = document.getElementById('availableCount');
         if (availCount) availCount.textContent = parseInt(availCount.textContent) + 1;
+        // Re-apply lock state in case a player is currently in auction
+        lockAvailablePlayers(currentPlayerId > 0);
     }
 
     // Update team display
@@ -311,7 +343,18 @@ async function updateTeamDisplay(teamId, teamName) {
 // ─── Actions ───
 
 async function startAuction(playerId) {
-    const result = await conn.post('/Auction/StartPlayerAuction', { lobbyId: currentLobbyId, playerId });
+    // Read the per-player minimum bid from the corresponding input
+    const minBidInput = document.querySelector(`.min-bid-input[data-player-id="${playerId}"]`);
+    let minimumBid = 0;
+    if (minBidInput && minBidInput.value && !isNaN(parseInt(minBidInput.value))) {
+        minimumBid = Math.max(0, parseInt(minBidInput.value));
+    }
+
+    const result = await conn.post('/Auction/StartPlayerAuction', {
+        lobbyId: currentLobbyId,
+        playerId,
+        minimumBid
+    });
     if (!result.success) {
         ToastManager.show(result.message || 'Failed to start auction', 'error');
     }
@@ -529,7 +572,14 @@ async function fetchAuctionState() {
         const state = await response.json();
         if (state.currentPlayer) {
             currentPlayerId = state.currentPlayer.playerId;
+            // Include minimumBid from state if present
+            state.currentPlayer.minimumBid = state.minimumBid;
             handlePlayerUpdate(state.currentPlayer);
+        } else {
+            // No player in auction: ensure available players are unlocked
+            currentPlayerId = 0;
+            currentMinimumBid = 0;
+            lockAvailablePlayers(false);
         }
     } catch (err) {
         console.error('Failed to fetch auction state:', err);
